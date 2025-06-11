@@ -1,0 +1,292 @@
+{% extends 'proipiresia/base.html' %}
+
+{% block title %}Αίτηση #{{ application.id }} - {{ application.teacher.last_name }} {{ application.teacher.first_name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Αρχική</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'application-list' %}">Αιτήσεις</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Αίτηση #{{ application.id }}</li>
+        </ol>
+    </nav>
+    
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="mb-0">Αίτηση #{{ application.id }}</h1>
+            <p class="text-muted">{{ application.teacher.last_name }} {{ application.teacher.first_name }} - {{ application.school_year }}</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <div class="btn-group" role="group">
+                {% if application.status != 'COMPLETED' %}
+                <a href="{% url 'application-update' application.id %}" class="btn btn-warning">
+                    <i class="fas fa-edit me-2"></i>Επεξεργασία
+                </a>
+                {% else %}
+                <a href="{% url 'create-application-version' application.id %}" class="btn btn-info">
+                    <i class="fas fa-copy me-2"></i>Νέα Έκδοση
+                </a>
+                {% endif %}
+                <a href="{% url 'add-prior-service' application.id %}" class="btn btn-success">
+                    <i class="fas fa-plus me-2"></i>Προσθήκη Προϋπηρεσίας
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Στοιχεία Αίτησης</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th class="w-40">Εκπαιδευτικός:</th>
+                            <td>
+                                <a href="{% url 'teacher-detail' application.teacher.id %}">
+                                    {{ application.teacher.last_name }} {{ application.teacher.first_name }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Υπηρεσία:</th>
+                            <td>{{ application.current_service }}</td>
+                        </tr>
+                        <tr>
+                            <th>Σχολικό Έτος:</th>
+                            <td>{{ application.school_year }}</td>
+                        </tr>
+                        <tr>
+                            <th>Τύπος Εκπ/κού:</th>
+                            <td>{{ application.employee_type }}</td>
+                        </tr>
+                        <tr>
+                            <th>Φάση Πρόσληψης:</th>
+                            <td>{{ application.recruitment_phase|default:"Δεν έχει οριστεί" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Ημ. Υποβολής:</th>
+                            <td>{{ application.submission_date|date:"d/m/Y"|default:"Δεν έχει οριστεί" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Σχόλια:</th>
+                            <td>{{ application.submission_comments|default:"Δεν υπάρχουν σχόλια" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Αρ. Πρωτοκόλλου:</th>
+                            <td>{{ application.protocol_number|default:"Δεν έχει οριστεί" }}</td>
+                        </tr>
+                        <tr>
+                            <th>ΠΥΣΕΕΠ:</th>
+                            <td>
+                                {% if application.pyseep %}
+                                {{ application.pyseep.act_number }} ({{ application.pyseep.date|date:"d/m/Y" }})
+                                {% else %}
+                                <span class="text-muted">Δεν έχει οριστεί</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Κατάσταση:</th>
+                            <td>
+                                {% if application.status == 'NEW' %}
+                                <span class="badge bg-secondary">Νέα αίτηση</span>
+                                {% elif application.status == 'PENDING_DOCS' %}
+                                <span class="badge bg-warning text-dark">Σε αναμονή δικαιολογητικών</span>
+                                {% elif application.status == 'READY_FOR_PYSEEP' %}
+                                <span class="badge bg-info">Έτοιμη για ΠΥΣΕΕΠ</span>
+                                {% elif application.status == 'COMPLETED' %}
+                                <span class="badge bg-success">Ολοκληρωμένη από ΠΥΣΕΕΠ</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Έκδοση:</th>
+                            <td>{{ application.version }}</td>
+                        </tr>
+                        <tr>
+                            <th>Ημ. Δημιουργίας:</th>
+                            <td>{{ application.created_at|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            {% if application.application_file %}
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-file-pdf me-2"></i>Αρχείο Αίτησης</h5>
+                </div>
+                <div class="card-body text-center">
+                    <a href="{{ application.application_file.url }}" class="btn btn-outline-danger" target="_blank">
+                        <i class="fas fa-file-pdf me-2"></i>Προβολή PDF
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if application.status != 'COMPLETED' %}
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Αλλαγή Κατάστασης</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'change-application-status' application.id %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="{{ status_form.status.id_for_label }}" class="form-label">{{ status_form.status.label }}</label>
+                            {{ status_form.status }}
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Αποθήκευση
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Συνολική Προϋπηρεσία</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="row">
+                        <div class="col-4">
+                            <div class="display-6">{{ total_experience.years }}</div>
+                            <p class="text-muted">Έτη</p>
+                        </div>
+                        <div class="col-4">
+                            <div class="display-6">{{ total_experience.months }}</div>
+                            <p class="text-muted">Μήνες</p>
+                        </div>
+                        <div class="col-4">
+                            <div class="display-6">{{ total_experience.days }}</div>
+                            <p class="text-muted">Ημέρες</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Προϋπηρεσίες</h5>
+                    {% if application.status != 'COMPLETED' %}
+                    <div class="btn-group" role="group">
+                        <a href="{% url 'add-prior-service' application.id %}" class="btn btn-sm btn-success">
+                            <i class="fas fa-plus me-2"></i>Προσθήκη
+                        </a>
+                        <a href="{% url 'add-prior-service' application.id %}?load_previous=true" class="btn btn-sm btn-info">
+                            <i class="fas fa-sync me-2"></i>Φόρτωση Προηγούμενων
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if prior_services %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Φορέας</th>
+                                    <th>Αρ. Πρωτοκόλλου</th>
+                                    <th>Σχέση Εργασίας</th>
+                                    <th>Από</th>
+                                    <th>Έως</th>
+                                    <th>Διάρκεια</th>
+                                    <th>Ελέγχθηκε</th>
+                                    <th>Ενέργειες</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for service in prior_services %}
+                                <tr>
+                                    <td>{{ service.service_provider }}</td>
+                                    <td>{{ service.protocol_number }}</td>
+                                    <td>{{ service.employment_relation }}</td>
+                                    <td>{{ service.start_date|date:"d/m/Y" }}</td>
+                                    <td>{{ service.end_date|date:"d/m/Y" }}</td>
+                                    <td>
+                                        {{ service.years }} έτη, 
+                                        {{ service.months }} μήνες, 
+                                        {{ service.days }} ημέρες
+                                    </td>
+                                    <td>
+                                        {% if service.verified %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>Ναι
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-times me-1"></i>Όχι
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            {% if application.status != 'COMPLETED' %}
+                                            <form method="post" action="{% url 'verify-prior-service' service.id %}" class="d-inline">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="verified" value="{% if service.verified %}false{% else %}true{% endif %}">
+                                                <button type="submit" class="btn btn-sm {% if service.verified %}btn-outline-secondary{% else %}btn-outline-success{% endif %}" data-bs-toggle="tooltip" title="{% if service.verified %}Αναίρεση Ελέγχου{% else %}Έλεγχος{% endif %}">
+                                                    <i class="fas {% if service.verified %}fa-times{% else %}fa-check{% endif %}"></i>
+                                                </button>
+                                            </form>
+                                            
+                                            <a href="{% url 'edit-prior-service' service.id %}" class="btn btn-sm btn-warning" data-bs-toggle="tooltip" title="Επεξεργασία">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            
+                                            <a href="{% url 'delete-prior-service' service.id %}" class="btn btn-sm btn-danger" data-bs-toggle="tooltip" title="Διαγραφή">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="table-light">
+                                    <td colspan="8">
+                                        {% if service.history %}
+                                        <strong>Ιστορικό:</strong> {{ service.history|linebreaksbr }}<br>
+                                        {% endif %}
+                                        {% if service.notes %}
+                                        <strong>Παρατηρήσεις:</strong> {{ service.notes|linebreaksbr }}<br>
+                                        {% endif %}
+                                        {% if service.internal_notes %}
+                                        <strong>Εσωτερικές Σημειώσεις:</strong> {{ service.internal_notes|linebreaksbr }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-history fa-4x mb-3 text-muted"></i>
+                        <h4>Δεν υπάρχουν καταχωρημένες προϋπηρεσίες</h4>
+                        <p class="text-muted">Δεν έχουν καταχωρηθεί προϋπηρεσίες για αυτή την αίτηση.</p>
+                        {% if application.status != 'COMPLETED' %}
+                        <div class="mt-3">
+                            <a href="{% url 'add-prior-service' application.id %}" class="btn btn-success me-2">
+                                <i class="fas fa-plus me-2"></i>Προσθήκη Προϋπηρεσίας
+                            </a>
+                            <a href="{% url 'add-prior-service' application.id %}?load_previous=true" class="btn btn-info">
+                                <i class="fas fa-sync me-2"></i>Φόρτωση Προηγούμενων
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

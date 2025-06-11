@@ -1,0 +1,167 @@
+{% extends 'proipiresia/base.html' %}
+
+{% block title %}Αρχική - Σύστημα Αναγνώρισης Προϋπηρεσιών{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Καλωσήρθατε στο Σύστημα Αναγνώρισης Προϋπηρεσιών</h1>
+    
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card card-dashboard bg-primary text-white">
+                <div class="card-body text-center">
+                    <h5 class="card-title"><i class="fas fa-file-alt fa-2x mb-3"></i></h5>
+                    <h3 class="card-text">{{ total_applications }}</h3>
+                    <p class="card-text">Συνολικές Αιτήσεις</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card card-dashboard bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h5 class="card-title"><i class="fas fa-clock fa-2x mb-3"></i></h5>
+                    <h3 class="card-text">{{ pending_applications }}</h3>
+                    <p class="card-text">Εκκρεμείς Αιτήσεις</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card card-dashboard bg-info text-white">
+                <div class="card-body text-center">
+                    <h5 class="card-title"><i class="fas fa-check-circle fa-2x mb-3"></i></h5>
+                    <h3 class="card-text">{{ ready_for_pyseep }}</h3>
+                    <p class="card-text">Έτοιμες για ΠΥΣΕΕΠ</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card card-dashboard bg-success text-white">
+                <div class="card-body text-center">
+                    <h5 class="card-title"><i class="fas fa-check-double fa-2x mb-3"></i></h5>
+                    <h3 class="card-text">{{ completed_applications }}</h3>
+                    <p class="card-text">Ολοκληρωμένες</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Πρόσφατες Αιτήσεις</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_applications %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Εκπαιδευτικός</th>
+                                    <th>Υπηρεσία</th>
+                                    <th>Κατάσταση</th>
+                                    <th>Ημερομηνία</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for application in recent_applications %}
+                                <tr>
+                                    <td>{{ application.teacher }}</td>
+                                    <td>{{ application.current_service }}</td>
+                                    <td>
+                                        {% if application.status == 'NEW' %}
+                                        <span class="badge bg-secondary">Νέα</span>
+                                        {% elif application.status == 'PENDING_DOCS' %}
+                                        <span class="badge bg-warning text-dark">Σε αναμονή</span>
+                                        {% elif application.status == 'READY_FOR_PYSEEP' %}
+                                        <span class="badge bg-info">Έτοιμη για ΠΥΣΕΕΠ</span>
+                                        {% elif application.status == 'COMPLETED' %}
+                                        <span class="badge bg-success">Ολοκληρωμένη</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ application.created_at|date:"d/m/Y" }}</td>
+                                    <td>
+                                        <a href="{% url 'application-detail' application.id %}" class="btn btn-sm btn-primary btn-icon" data-bs-toggle="tooltip" title="Προβολή">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-end">
+                        <a href="{% url 'application-list' %}" class="btn btn-outline-primary">Όλες οι αιτήσεις</a>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Δεν υπάρχουν πρόσφατες αιτήσεις.</p>
+                    <div class="text-center">
+                        <a href="{% url 'application-create' %}" class="btn btn-primary">Δημιουργία Αίτησης</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Επερχόμενα ΠΥΣΕΕΠ</h5>
+                </div>
+                <div class="card-body">
+                    {% if upcoming_pyseep %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Αριθμός Πράξης</th>
+                                    <th>Ημερομηνία</th>
+                                    <th>Σχολικό Έτος</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pyseep in upcoming_pyseep %}
+                                <tr>
+                                    <td>{{ pyseep.act_number }}</td>
+                                    <td>{{ pyseep.date|date:"d/m/Y" }}</td>
+                                    <td>{{ pyseep.school_year }}</td>
+                                    <td>
+                                        <a href="{% url 'generate-report' %}?pyseep={{ pyseep.id }}" class="btn btn-sm btn-primary btn-icon" data-bs-toggle="tooltip" title="Δημιουργία Αναφοράς">
+                                            <i class="fas fa-file-export"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Δεν υπάρχουν επερχόμενα ΠΥΣΕΕΠ.</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Γρήγορες Ενέργειες</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'teacher-create' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-user-plus me-2"></i>Νέος Εκπαιδευτικός
+                        </a>
+                        <a href="{% url 'application-create' %}" class="btn btn-outline-success">
+                            <i class="fas fa-file-plus me-2"></i>Νέα Αίτηση
+                        </a>
+                        <a href="{% url 'generate-report' %}" class="btn btn-outline-info">
+                            <i class="fas fa-chart-bar me-2"></i>Δημιουργία Αναφοράς
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

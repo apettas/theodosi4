@@ -1,0 +1,191 @@
+{% extends 'proipiresia/base.html' %}
+
+{% block title %}Αιτήσεις - Σύστημα Αναγνώρισης Προϋπηρεσιών{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-file-alt me-2"></i>Αιτήσεις</h1>
+        <a href="{% url 'application-create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Νέα Αίτηση
+        </a>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-search me-2"></i>Αναζήτηση</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="{{ search_form.teacher_name.id_for_label }}" class="form-label">{{ search_form.teacher_name.label }}</label>
+                    {{ search_form.teacher_name }}
+                </div>
+                <div class="col-md-4">
+                    <label for="{{ search_form.school_year.id_for_label }}" class="form-label">{{ search_form.school_year.label }}</label>
+                    {{ search_form.school_year }}
+                </div>
+                <div class="col-md-4">
+                    <label for="{{ search_form.current_service.id_for_label }}" class="form-label">{{ search_form.current_service.label }}</label>
+                    {{ search_form.current_service }}
+                </div>
+                <div class="col-md-4">
+                    <label for="{{ search_form.status.id_for_label }}" class="form-label">{{ search_form.status.label }}</label>
+                    {{ search_form.status }}
+                </div>
+                <div class="col-md-4">
+                    <label for="{{ search_form.pyseep.id_for_label }}" class="form-label">{{ search_form.pyseep.label }}</label>
+                    {{ search_form.pyseep }}
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <div class="d-grid gap-2 w-100">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search me-2"></i>Αναζήτηση
+                        </button>
+                        {% if request.GET %}
+                        <a href="{% url 'application-list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Καθαρισμός
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Λίστα Αιτήσεων</h5>
+        </div>
+        <div class="card-body">
+            {% if applications %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Εκπαιδευτικός</th>
+                            <th>Υπηρεσία</th>
+                            <th>Σχολικό Έτος</th>
+                            <th>Τύπος</th>
+                            <th>Κατάσταση</th>
+                            <th>ΠΥΣΕΕΠ</th>
+                            <th>Ημερομηνία</th>
+                            <th>Ενέργειες</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for application in applications %}
+                        <tr>
+                            <td>{{ application.id }}</td>
+                            <td>
+                                <a href="{% url 'teacher-detail' application.teacher.id %}">
+                                    {{ application.teacher.last_name }} {{ application.teacher.first_name }}
+                                </a>
+                            </td>
+                            <td>{{ application.current_service }}</td>
+                            <td>{{ application.school_year }}</td>
+                            <td>{{ application.employee_type }}</td>
+                            <td>
+                                {% if application.status == 'NEW' %}
+                                <span class="badge bg-secondary">Νέα</span>
+                                {% elif application.status == 'PENDING_DOCS' %}
+                                <span class="badge bg-warning text-dark">Σε αναμονή</span>
+                                {% elif application.status == 'READY_FOR_PYSEEP' %}
+                                <span class="badge bg-info">Έτοιμη για ΠΥΣΕΕΠ</span>
+                                {% elif application.status == 'COMPLETED' %}
+                                <span class="badge bg-success">Ολοκληρωμένη</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if application.pyseep %}
+                                {{ application.pyseep.act_number }} ({{ application.pyseep.date|date:"d/m/Y" }})
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ application.created_at|date:"d/m/Y" }}</td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'application-detail' application.id %}" class="btn btn-sm btn-primary" data-bs-toggle="tooltip" title="Προβολή">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if application.status != 'COMPLETED' %}
+                                    <a href="{% url 'application-update' application.id %}" class="btn btn-sm btn-warning" data-bs-toggle="tooltip" title="Επεξεργασία">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% else %}
+                                    <a href="{% url 'create-application-version' application.id %}" class="btn btn-sm btn-info" data-bs-toggle="tooltip" title="Νέα Έκδοση">
+                                        <i class="fas fa-copy"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="First">
+                            <span aria-hidden="true">&laquo;&laquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item"><a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a></li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Last">
+                            <span aria-hidden="true">&raquo;&raquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-file-alt fa-4x mb-3 text-muted"></i>
+                <h4>Δεν βρέθηκαν αιτήσεις</h4>
+                {% if request.GET %}
+                <p class="text-muted">Δεν βρέθηκαν αποτελέσματα με τα επιλεγμένα κριτήρια αναζήτησης.</p>
+                <a href="{% url 'application-list' %}" class="btn btn-outline-primary mt-2">
+                    <i class="fas fa-times me-2"></i>Καθαρισμός Αναζήτησης
+                </a>
+                {% else %}
+                <p class="text-muted">Δεν υπάρχουν καταχωρημένες αιτήσεις στο σύστημα.</p>
+                <a href="{% url 'application-create' %}" class="btn btn-primary mt-2">
+                    <i class="fas fa-plus me-2"></i>Δημιουργία Αίτησης
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,287 @@
+{% extends 'proipiresia/base.html' %}
+
+{% block title %}
+{% if form.instance.id %}
+Επεξεργασία Προϋπηρεσίας
+{% else %}
+Προσθήκη Προϋπηρεσίας
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Αρχική</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'application-list' %}">Αιτήσεις</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'application-detail' application.id %}">Αίτηση #{{ application.id }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">
+                {% if form.instance.id %}
+                Επεξεργασία Προϋπηρεσίας
+                {% else %}
+                Προσθήκη Προϋπηρεσίας
+                {% endif %}
+            </li>
+        </ol>
+    </nav>
+    
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        {% if form.instance.id %}
+                        <i class="fas fa-edit me-2"></i>Επεξεργασία Προϋπηρεσίας
+                        {% else %}
+                        <i class="fas fa-plus me-2"></i>Προσθήκη Προϋπηρεσίας
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h6>Αίτηση:</h6>
+                        <p class="lead">{{ application.teacher.last_name }} {{ application.teacher.first_name }} - {{ application.school_year }}</p>
+                    </div>
+                    
+                    {% if has_previous and not form.instance.id %}
+                    <div class="alert alert-info mb-4">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-grow-1">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Σημείωση:</strong> Υπάρχουν προηγούμενες προϋπηρεσίες για τον εκπαιδευτικό.
+                            </div>
+                            <a href="{% url 'add-prior-service' application.id %}?load_previous=true" class="btn btn-info">
+                                <i class="fas fa-sync me-2"></i>Φόρτωση Προηγούμενων
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="border-bottom pb-2">Στοιχεία Προϋπηρεσίας</h5>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.service_provider.id_for_label }}" class="form-label">{{ form.service_provider.label }} <span class="text-danger">*</span></label>
+                                {{ form.service_provider }}
+                                {% if form.service_provider.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.service_provider.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.protocol_number.id_for_label }}" class="form-label">{{ form.protocol_number.label }} <span class="text-danger">*</span></label>
+                                {{ form.protocol_number }}
+                                {% if form.protocol_number.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.protocol_number.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.employment_relation.id_for_label }}" class="form-label">{{ form.employment_relation.label }} <span class="text-danger">*</span></label>
+                                {{ form.employment_relation }}
+                                {% if form.employment_relation.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.employment_relation.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="border-bottom pb-2">Χρονικό Διάστημα</h5>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.start_date.id_for_label }}" class="form-label">{{ form.start_date.label }} <span class="text-danger">*</span></label>
+                                {{ form.start_date }}
+                                {% if form.start_date.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.start_date.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.end_date.id_for_label }}" class="form-label">{{ form.end_date.label }} <span class="text-danger">*</span></label>
+                                {{ form.end_date }}
+                                {% if form.end_date.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.end_date.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="{{ form.years.id_for_label }}" class="form-label">{{ form.years.label }} <span class="text-danger">*</span></label>
+                                {{ form.years }}
+                                {% if form.years.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.years.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label for="{{ form.months.id_for_label }}" class="form-label">{{ form.months.label }} <span class="text-danger">*</span></label>
+                                {{ form.months }}
+                                {% if form.months.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.months.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label for="{{ form.days.id_for_label }}" class="form-label">{{ form.days.label }} <span class="text-danger">*</span></label>
+                                {{ form.days }}
+                                {% if form.days.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.days.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="border-bottom pb-2">Σημειώσεις</h5>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="{{ form.notes.id_for_label }}" class="form-label">{{ form.notes.label }}</label>
+                                {{ form.notes }}
+                                {% if form.notes.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.notes.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                <div class="form-text">Προαιρετικό</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="{{ form.internal_notes.id_for_label }}" class="form-label">{{ form.internal_notes.label }}</label>
+                                {{ form.internal_notes }}
+                                {% if form.internal_notes.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.internal_notes.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                <div class="form-text">Προαιρετικό</div>
+                            </div>
+                        </div>
+                        
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'application-detail' application.id %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Ακύρωση
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>
+                                {% if form.instance.id %}
+                                Αποθήκευση
+                                {% else %}
+                                Προσθήκη
+                                {% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Αυτόματος υπολογισμός διάρκειας προϋπηρεσίας
+    document.addEventListener('DOMContentLoaded', function() {
+        const startDateInput = document.getElementById('{{ form.start_date.id_for_label }}');
+        const endDateInput = document.getElementById('{{ form.end_date.id_for_label }}');
+        const yearsInput = document.getElementById('{{ form.years.id_for_label }}');
+        const monthsInput = document.getElementById('{{ form.months.id_for_label }}');
+        const daysInput = document.getElementById('{{ form.days.id_for_label }}');
+        
+        function calculateDuration() {
+            if (startDateInput.value && endDateInput.value) {
+                const startDate = new Date(startDateInput.value);
+                const endDate = new Date(endDateInput.value);
+                
+                // Έλεγχος εγκυρότητας ημερομηνιών
+                if (endDate < startDate) {
+                    return;
+                }
+                
+                // Προσθήκη μίας ημέρας για να συμπεριληφθεί και η τελευταία ημέρα
+                endDate.setDate(endDate.getDate() + 1);
+                
+                // Υπολογισμός διαφοράς σε ημέρες
+                const diffTime = Math.abs(endDate - startDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                // Υπολογισμός ετών, μηνών, ημερών
+                const years = Math.floor(diffDays / 365);
+                const remainingDays = diffDays % 365;
+                const months = Math.floor(remainingDays / 30);
+                const days = remainingDays % 30;
+                
+                // Ενημέρωση πεδίων
+                yearsInput.value = years;
+                monthsInput.value = months;
+                daysInput.value = days;
+            }
+        }
+        
+        // Προσθήκη event listeners
+        if (startDateInput && endDateInput) {
+            startDateInput.addEventListener('change', calculateDuration);
+            endDateInput.addEventListener('change', calculateDuration);
+        }
+    });
+</script>
+{% endblock %}

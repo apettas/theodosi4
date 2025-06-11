@@ -1,0 +1,196 @@
+{% extends 'proipiresia/base.html' %}
+
+{% block title %}{{ teacher.last_name }} {{ teacher.first_name }} - Λεπτομέρειες Εκπαιδευτικού{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Αρχική</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'teacher-list' %}">Εκπαιδευτικοί</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ teacher.last_name }} {{ teacher.first_name }}</li>
+        </ol>
+    </nav>
+    
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="mb-0">{{ teacher.last_name }} {{ teacher.first_name }}</h1>
+            <p class="text-muted">Εκπαιδευτικός</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <div class="btn-group" role="group">
+                <a href="{% url 'teacher-update' teacher.id %}" class="btn btn-warning">
+                    <i class="fas fa-edit me-2"></i>Επεξεργασία
+                </a>
+                <a href="{% url 'application-create' %}?teacher={{ teacher.id }}" class="btn btn-success">
+                    <i class="fas fa-file-plus me-2"></i>Νέα Αίτηση
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-user me-2"></i>Προσωπικά Στοιχεία</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th class="w-40">Επώνυμο:</th>
+                            <td>{{ teacher.last_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Όνομα:</th>
+                            <td>{{ teacher.first_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Πατρώνυμο:</th>
+                            <td>{{ teacher.father_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Τηλέφωνο:</th>
+                            <td>{{ teacher.phone|default:"Δεν έχει οριστεί" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Email:</th>
+                            <td>{{ teacher.email|default:"Δεν έχει οριστεί" }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-graduation-cap me-2"></i>Ειδικότητες</h5>
+                    <a href="{% url 'add-teacher-specialty' teacher.id %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus"></i>
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if specialties %}
+                    <div class="list-group">
+                        {% for specialty in specialties %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ specialty.specialty.code }}</strong>
+                                <p class="mb-0 text-muted small">{{ specialty.specialty.description }}</p>
+                            </div>
+                            {% if specialty.is_primary %}
+                            <span class="badge bg-primary">Κύρια</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-3">Δεν έχουν οριστεί ειδικότητες</p>
+                    <div class="text-center">
+                        <a href="{% url 'add-teacher-specialty' teacher.id %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Προσθήκη Ειδικότητας
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Συνολική Προϋπηρεσία</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="row">
+                        <div class="col-4">
+                            <div class="display-6">{{ total_experience.years }}</div>
+                            <p class="text-muted">Έτη</p>
+                        </div>
+                        <div class="col-4">
+                            <div class="display-6">{{ total_experience.months }}</div>
+                            <p class="text-muted">Μήνες</p>
+                        </div>
+                        <div class="col-4">
+                            <div class="display-6">{{ total_experience.days }}</div>
+                            <p class="text-muted">Ημέρες</p>
+                        </div>
+                    </div>
+                    <p class="text-muted small mt-3">Συνολική αναγνωρισμένη προϋπηρεσία από ολοκληρωμένες αιτήσεις</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Αιτήσεις</h5>
+                </div>
+                <div class="card-body">
+                    {% if applications %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Σχολικό Έτος</th>
+                                    <th>Υπηρεσία</th>
+                                    <th>Τύπος</th>
+                                    <th>Κατάσταση</th>
+                                    <th>Ημερομηνία</th>
+                                    <th>Ενέργειες</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for application in applications %}
+                                <tr>
+                                    <td>{{ application.id }}</td>
+                                    <td>{{ application.school_year }}</td>
+                                    <td>{{ application.current_service }}</td>
+                                    <td>{{ application.employee_type }}</td>
+                                    <td>
+                                        {% if application.status == 'NEW' %}
+                                        <span class="badge bg-secondary">Νέα</span>
+                                        {% elif application.status == 'PENDING_DOCS' %}
+                                        <span class="badge bg-warning text-dark">Σε αναμονή</span>
+                                        {% elif application.status == 'READY_FOR_PYSEEP' %}
+                                        <span class="badge bg-info">Έτοιμη για ΠΥΣΕΕΠ</span>
+                                        {% elif application.status == 'COMPLETED' %}
+                                        <span class="badge bg-success">Ολοκληρωμένη</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ application.created_at|date:"d/m/Y" }}</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'application-detail' application.id %}" class="btn btn-sm btn-primary" data-bs-toggle="tooltip" title="Προβολή">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if application.status != 'COMPLETED' %}
+                                            <a href="{% url 'application-update' application.id %}" class="btn btn-sm btn-warning" data-bs-toggle="tooltip" title="Επεξεργασία">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            {% else %}
+                                            <a href="{% url 'create-application-version' application.id %}" class="btn btn-sm btn-info" data-bs-toggle="tooltip" title="Νέα Έκδοση">
+                                                <i class="fas fa-copy"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-file-alt fa-4x mb-3 text-muted"></i>
+                        <h4>Δεν υπάρχουν αιτήσεις</h4>
+                        <p class="text-muted">Δεν έχουν καταχωρηθεί αιτήσεις για τον συγκεκριμένο εκπαιδευτικό.</p>
+                        <a href="{% url 'application-create' %}?teacher={{ teacher.id }}" class="btn btn-primary mt-2">
+                            <i class="fas fa-plus me-2"></i>Δημιουργία Αίτησης
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

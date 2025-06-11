@@ -1,0 +1,129 @@
+{% extends 'proipiresia/base.html' %}
+
+{% block title %}
+{% if form.instance.id %}
+Επεξεργασία Εκπαιδευτικού - {{ form.instance.last_name }} {{ form.instance.first_name }}
+{% else %}
+Νέος Εκπαιδευτικός
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Αρχική</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'teacher-list' %}">Εκπαιδευτικοί</a></li>
+            <li class="breadcrumb-item active" aria-current="page">
+                {% if form.instance.id %}
+                Επεξεργασία {{ form.instance.last_name }} {{ form.instance.first_name }}
+                {% else %}
+                Νέος Εκπαιδευτικός
+                {% endif %}
+            </li>
+        </ol>
+    </nav>
+    
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">
+                {% if form.instance.id %}
+                <i class="fas fa-edit me-2"></i>Επεξεργασία Εκπαιδευτικού
+                {% else %}
+                <i class="fas fa-user-plus me-2"></i>Νέος Εκπαιδευτικός
+                {% endif %}
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="post" novalidate>
+                {% csrf_token %}
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="{{ form.last_name.id_for_label }}" class="form-label">{{ form.last_name.label }} <span class="text-danger">*</span></label>
+                        {{ form.last_name }}
+                        {% if form.last_name.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.last_name.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ form.first_name.id_for_label }}" class="form-label">{{ form.first_name.label }} <span class="text-danger">*</span></label>
+                        {{ form.first_name }}
+                        {% if form.first_name.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.first_name.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ form.father_name.id_for_label }}" class="form-label">{{ form.father_name.label }} <span class="text-danger">*</span></label>
+                        {{ form.father_name }}
+                        {% if form.father_name.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.father_name.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.phone.id_for_label }}" class="form-label">{{ form.phone.label }}</label>
+                        {{ form.phone }}
+                        {% if form.phone.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.phone.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="form-text">Προαιρετικό</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.email.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="form-text">Προαιρετικό</div>
+                    </div>
+                </div>
+                
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}
+                    {{ error }}
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{% if form.instance.id %}{% url 'teacher-detail' form.instance.id %}{% else %}{% url 'teacher-list' %}{% endif %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-2"></i>Ακύρωση
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>
+                        {% if form.instance.id %}
+                        Αποθήκευση
+                        {% else %}
+                        Δημιουργία
+                        {% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,144 @@
+{% extends 'proipiresia/base.html' %}
+
+{% block title %}Δημιουργία Αναφοράς - Σύστημα Αναγνώρισης Προϋπηρεσιών{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Αρχική</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Δημιουργία Αναφοράς</li>
+        </ol>
+    </nav>
+    
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Δημιουργία Αναφοράς</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-4">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Πληροφορία:</strong> Δημιουργήστε αναφορές για τις αιτήσεις που είναι έτοιμες για ΠΥΣΕΕΠ ή έχουν ολοκληρωθεί από το ΠΥΣΕΕΠ.
+                    </div>
+                    
+                    <form method="post" target="_blank">
+                        {% csrf_token %}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="{{ form.pyseep.id_for_label }}" class="form-label">{{ form.pyseep.label }} <span class="text-danger">*</span></label>
+                                {{ form.pyseep }}
+                                {% if form.pyseep.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.pyseep.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                <div class="form-text">Επιλέξτε το ΠΥΣΕΕΠ για το οποίο θέλετε να δημιουργήσετε αναφορά.</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="{{ form.current_service.id_for_label }}" class="form-label">{{ form.current_service.label }}</label>
+                                {{ form.current_service }}
+                                {% if form.current_service.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.current_service.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                <div class="form-text">Προαιρετικό. Επιλέξτε υπηρεσία για φιλτράρισμα των αποτελεσμάτων.</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="{{ form.format.id_for_label }}" class="form-label">{{ form.format.label }} <span class="text-danger">*</span></label>
+                                {{ form.format }}
+                                {% if form.format.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.format.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                <div class="form-text">Επιλέξτε τη μορφή του αρχείου αναφοράς.</div>
+                            </div>
+                        </div>
+                        
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-file-export me-2"></i>Δημιουργία Αναφοράς
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Πληροφορίες Αναφορών</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 text-center mb-3 mb-md-0">
+                            <div class="p-3 border rounded">
+                                <i class="fas fa-file-excel fa-3x text-success mb-3"></i>
+                                <h5>Excel (XLSX)</h5>
+                                <p class="text-muted small">Κατάλληλο για επεξεργασία δεδομένων και ανάλυση.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center mb-3 mb-md-0">
+                            <div class="p-3 border rounded">
+                                <i class="fas fa-file-pdf fa-3x text-danger mb-3"></i>
+                                <h5>PDF</h5>
+                                <p class="text-muted small">Κατάλληλο για εκτύπωση και επίσημη παρουσίαση.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="p-3 border rounded">
+                                <i class="fas fa-file-word fa-3x text-primary mb-3"></i>
+                                <h5>Word (DOCX)</h5>
+                                <p class="text-muted small">Κατάλληλο για περαιτέρω επεξεργασία κειμένου.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-light mt-4 mb-0">
+                        <p class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Οι αναφορές περιλαμβάνουν τις αιτήσεις που είναι σε κατάσταση "Έτοιμη για ΠΥΣΕΕΠ" και έχουν οριστεί για το επιλεγμένο ΠΥΣΕΕΠ. Οι αιτήσεις ταξινομούνται πρώτα ανά υπηρεσία τρέχουσας τοποθέτησης και μετά ανά ονοματεπώνυμο εκπαιδευτικού.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Αυτόματη επιλογή του ΠΥΣΕΕΠ από το URL
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const pyseepId = urlParams.get('pyseep');
+        if (pyseepId) {
+            document.getElementById('{{ form.pyseep.id_for_label }}').value = pyseepId;
+        }
+    });
+</script>
+{% endblock %}

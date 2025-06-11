@@ -1,0 +1,146 @@
+{% extends 'proipiresia/base.html' %}
+
+{% block title %}Εκπαιδευτικοί - Σύστημα Αναγνώρισης Προϋπηρεσιών{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-user-graduate me-2"></i>Εκπαιδευτικοί</h1>
+        <a href="{% url 'teacher-create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Νέος Εκπαιδευτικός
+        </a>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <form method="get" class="row g-3">
+                <div class="col-md-8">
+                    <div class="input-group">
+                        <input type="text" name="search" class="form-control" placeholder="Αναζήτηση με όνομα, επώνυμο, πατρώνυμο ή ειδικότητα..." value="{{ search_term }}">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    {% if search_term %}
+                    <a href="{% url 'teacher-list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-2"></i>Καθαρισμός
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+        <div class="card-body">
+            {% if teachers %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Επώνυμο</th>
+                            <th>Όνομα</th>
+                            <th>Πατρώνυμο</th>
+                            <th>Ειδικότητες</th>
+                            <th>Τηλέφωνο</th>
+                            <th>Email</th>
+                            <th>Ενέργειες</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for teacher in teachers %}
+                        <tr>
+                            <td>{{ teacher.last_name }}</td>
+                            <td>{{ teacher.first_name }}</td>
+                            <td>{{ teacher.father_name }}</td>
+                            <td>
+                                {% for ts in teacher.teacherspecialty_set.all %}
+                                <span class="badge {% if ts.is_primary %}bg-primary{% else %}bg-secondary{% endif %}">
+                                    {{ ts.specialty.code }}
+                                </span>
+                                {% empty %}
+                                <span class="text-muted">-</span>
+                                {% endfor %}
+                            </td>
+                            <td>{{ teacher.phone|default:"-" }}</td>
+                            <td>{{ teacher.email|default:"-" }}</td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'teacher-detail' teacher.id %}" class="btn btn-sm btn-primary" data-bs-toggle="tooltip" title="Προβολή">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'teacher-update' teacher.id %}" class="btn btn-sm btn-warning" data-bs-toggle="tooltip" title="Επεξεργασία">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'application-create' %}?teacher={{ teacher.id }}" class="btn btn-sm btn-success" data-bs-toggle="tooltip" title="Νέα Αίτηση">
+                                        <i class="fas fa-file-plus"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if search_term %}&search={{ search_term }}{% endif %}" aria-label="First">
+                            <span aria-hidden="true">&laquo;&laquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_term %}&search={{ search_term }}{% endif %}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item"><a class="page-link" href="?page={{ num }}{% if search_term %}&search={{ search_term }}{% endif %}">{{ num }}</a></li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_term %}&search={{ search_term }}{% endif %}" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_term %}&search={{ search_term }}{% endif %}" aria-label="Last">
+                            <span aria-hidden="true">&raquo;&raquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-user-graduate fa-4x mb-3 text-muted"></i>
+                <h4>Δεν βρέθηκαν εκπαιδευτικοί</h4>
+                {% if search_term %}
+                <p class="text-muted">Δεν βρέθηκαν αποτελέσματα για την αναζήτηση "{{ search_term }}".</p>
+                <a href="{% url 'teacher-list' %}" class="btn btn-outline-primary mt-2">
+                    <i class="fas fa-times me-2"></i>Καθαρισμός Αναζήτησης
+                </a>
+                {% else %}
+                <p class="text-muted">Δεν υπάρχουν καταχωρημένοι εκπαιδευτικοί στο σύστημα.</p>
+                <a href="{% url 'teacher-create' %}" class="btn btn-primary mt-2">
+                    <i class="fas fa-plus me-2"></i>Προσθήκη Εκπαιδευτικού
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
