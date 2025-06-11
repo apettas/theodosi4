@@ -309,13 +309,13 @@ class PriorService(models.Model):
     days = models.PositiveSmallIntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(30)], verbose_name="Ημέρες")
     history = models.TextField(blank=True, null=True, verbose_name="Ιστορικό")
     verified = models.DateTimeField(blank=True, null=True, verbose_name="Ελέγχθηκε")
-    verified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_services', verbose_name="Ελέγχθηκε από")
+    verified_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_services', verbose_name="Ελέγχθηκε από")
     notes = models.TextField(blank=True, null=True, verbose_name="Παρατηρήσεις")
     internal_notes = models.TextField(blank=True, null=True, verbose_name="Εσωτερικές Σημειώσεις")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Ημερομηνία Δημιουργίας")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Ημερομηνία Ενημέρωσης")
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_services', verbose_name="Δημιουργήθηκε από")
-    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='updated_services', verbose_name="Ενημερώθηκε από")
+    created_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, related_name='created_services', verbose_name="Δημιουργήθηκε από")
+    updated_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, related_name='updated_services', verbose_name="Ενημερώθηκε από")
     version_id = models.PositiveIntegerField(default=1, verbose_name="ID Έκδοσης")
     is_active = models.BooleanField(default=True, verbose_name="Ενεργή")
     
@@ -335,14 +335,16 @@ class PriorService(models.Model):
             raise ValidationError({'end_date': 'Η ημερομηνία λήξης πρέπει να είναι μεταγενέστερη της ημερομηνίας έναρξης.'})
         
         # Έλεγχος για αλληλεπικαλυπτόμενες περιόδους
-        overlapping = PriorService.objects.filter(
-            application=self.application,
-            start_date__lte=self.end_date,
-            end_date__gte=self.start_date
-        ).exclude(pk=self.pk)
-        
-        if overlapping.exists():
-            raise ValidationError('Υπάρχει αλληλεπικάλυψη με άλλη προϋπηρεσία στην ίδια αίτηση.')
+        # Ελέγχουμε αν το πεδίο application έχει οριστεί
+        if hasattr(self, 'application') and self.application is not None:
+            overlapping = PriorService.objects.filter(
+                application=self.application,
+                start_date__lte=self.end_date,
+                end_date__gte=self.start_date
+            ).exclude(pk=self.pk)
+            
+            if overlapping.exists():
+                raise ValidationError('Υπάρχει αλληλεπικάλυψη με άλλη προϋπηρεσία στην ίδια αίτηση.')
     
     def save(self, *args, **kwargs):
         # Υπολογισμός ετών, μηνών, ημερών αν δεν έχουν οριστεί

@@ -561,7 +561,8 @@ def add_prior_service(request, application_id):
             service.updated_by = user
             
             try:
-                service.clean()  # Έλεγχος για αλληλεπικαλυπτόμενες περιόδους
+                # Δεν χρειάζεται να καλέσουμε τη μέθοδο clean() χειροκίνητα
+                # καθώς καλείται αυτόματα από τη μέθοδο is_valid() της φόρμας
                 service.save()
                 
                 log_action(
