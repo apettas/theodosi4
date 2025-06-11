@@ -9,6 +9,21 @@ from .models import (
     EmploymentRelation, Application, PriorService, AuditLog
 )
 
+# Βοηθητική συνάρτηση για τη μετατροπή του request.user σε πραγματικό αντικείμενο User
+def get_real_user(request_user):
+    """
+    Μετατρέπει το request.user (SimpleLazyObject) σε πραγματικό αντικείμενο User
+    """
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    if request_user.is_authenticated:
+        try:
+            return User.objects.get(id=request_user.id)
+        except User.DoesNotExist:
+            # Αν δεν βρεθεί ο χρήστης, επιστρέφουμε None
+            return None
+    return None
+
 # Προσαρμοσμένο UserAdmin για το μοντέλο User
 class CustomUserAdmin(UserAdmin):
     list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'is_staff')
@@ -171,8 +186,8 @@ class ApplicationAdmin(admin.ModelAdmin):
     
     def save_model(self, request, obj, form, change):
         if not change:  # Αν είναι νέα εγγραφή
-            obj.created_by = request.user
-        obj.updated_by = request.user
+            obj.created_by = get_real_user(request.user)
+        obj.updated_by = get_real_user(request.user)
         super().save_model(request, obj, form, change)
     
     def save_formset(self, request, form, formset, change):
@@ -180,8 +195,8 @@ class ApplicationAdmin(admin.ModelAdmin):
         for instance in instances:
             if isinstance(instance, PriorService):
                 if not instance.pk:  # Αν είναι νέα εγγραφή
-                    instance.created_by = request.user
-                instance.updated_by = request.user
+                    instance.created_by = get_real_user(request.user)
+                instance.updated_by = get_real_user(request.user)
             instance.save()
         formset.save_m2m()
 
@@ -220,8 +235,8 @@ class PriorServiceAdmin(admin.ModelAdmin):
     
     def save_model(self, request, obj, form, change):
         if not change:  # Αν είναι νέα εγγραφή
-            obj.created_by = request.user
-        obj.updated_by = request.user
+            obj.created_by = get_real_user(request.user)
+        obj.updated_by = get_real_user(request.user)
         super().save_model(request, obj, form, change)
 
 # Admin για το μοντέλο AuditLog

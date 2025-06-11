@@ -215,8 +215,8 @@ class Application(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='NEW', verbose_name="Κατάσταση")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Ημερομηνία Δημιουργίας")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Ημερομηνία Ενημέρωσης")
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_applications', verbose_name="Δημιουργήθηκε από")
-    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='updated_applications', verbose_name="Ενημερώθηκε από")
+    created_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, related_name='created_applications', verbose_name="Δημιουργήθηκε από")
+    updated_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, related_name='updated_applications', verbose_name="Ενημερώθηκε από")
     version = models.PositiveIntegerField(default=1, verbose_name="Έκδοση")
     is_active = models.BooleanField(default=True, verbose_name="Ενεργή")
     

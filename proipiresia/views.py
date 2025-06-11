@@ -18,6 +18,21 @@ import datetime
 import tempfile
 from io import BytesIO
 import xlsxwriter
+
+# Βοηθητική συνάρτηση για τη μετατροπή του request.user σε πραγματικό αντικείμενο User
+def get_real_user(request_user):
+    """
+    Μετατρέπει το request.user (SimpleLazyObject) σε πραγματικό αντικείμενο User
+    """
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    if request_user.is_authenticated:
+        try:
+            return User.objects.get(id=request_user.id)
+        except User.DoesNotExist:
+            # Αν δεν βρεθεί ο χρήστης, επιστρέφουμε None
+            return None
+    return None
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -381,8 +396,10 @@ class ApplicationCreateView(LoginRequiredMixin, CreateView):
         return reverse('application-detail', kwargs={'pk': self.object.pk})
     
     def form_valid(self, form):
-        form.instance.created_by = self.request.user
-        form.instance.updated_by = self.request.user
+        # Χρήση της βοηθητικής συνάρτησης για τη μετατροπή του request.user
+        user = get_real_user(self.request.user)
+        form.instance.created_by = user
+        form.instance.updated_by = user
         
         response = super().form_valid(form)
         
@@ -425,7 +442,9 @@ class ApplicationUpdateView(LoginRequiredMixin, UpdateView):
             'status': self.object.status
         }
         
-        form.instance.updated_by = self.request.user
+        # Χρήση της βοηθητικής συνάρτησης για τη μετατροπή του request.user
+        user = get_real_user(self.request.user)
+        form.instance.updated_by = user
         
         response = super().form_valid(form)
         
@@ -464,7 +483,7 @@ def change_application_status(request, pk):
             old_status = application.status
             
             application = form.save(commit=False)
-            application.updated_by = request.user
+            application.updated_by = get_real_user(request.user)
             application.save()
             
             # Αν η κατάσταση άλλαξε σε "Ολοκληρωμένη από ΠΥΣΕΕΠ", ενημερώνουμε το ιστορικό των προϋπηρεσιών
@@ -475,7 +494,7 @@ def change_application_status(request, pk):
                     else:
                         service.history = f"Εγκρίθηκε από το ΠΥΣΕΕΠ πράξη {application.pyseep.act_number}, ημερομηνία {application.pyseep.date.strftime('%d/%m/%Y')}."
                     
-                    service.updated_by = request.user
+                    service.updated_by = get_real_user(request.user)
                     service.save()
             
             log_action(
@@ -503,7 +522,7 @@ def create_application_version(request, pk):
         return redirect('application-detail', pk=application.id)
     
     new_application = application.create_new_version()
-    new_application.updated_by = request.user
+    new_application.updated_by = get_real_user(request.user)
     new_application.save()
     
     log_action(
@@ -537,8 +556,9 @@ def add_prior_service(request, application_id):
         if form.is_valid():
             service = form.save(commit=False)
             service.application = application
-            service.created_by = request.user
-            service.updated_by = request.user
+            user = get_real_user(request.user)
+            service.created_by = user
+            service.updated_by = user
             
             try:
                 service.clean()  # Έλεγχος για αλληλεπικαλυπτόμενες περιόδους
@@ -599,8 +619,8 @@ def add_prior_service(request, application_id):
                         history=prev_service.history,
                         notes=prev_service.notes,
                         internal_notes=prev_service.internal_notes,
-                        created_by=request.user,
-                        updated_by=request.user,
+                        created_by=get_real_user(request.user),
+                        updated_by=get_real_user(request.user),
                         version_id=prev_service.version_id
                     )
                     
@@ -664,7 +684,7 @@ def edit_prior_service(request, pk):
             }
             
             service = form.save(commit=False)
-            service.updated_by = request.user
+            service.updated_by = get_real_user(request.user)
             
             try:
                 service.clean()  # Έλεγχος για αλληλεπικαλυπτόμενες περιόδους
@@ -755,7 +775,7 @@ def verify_prior_service(request, pk):
             
             if verified:
                 # Επαλήθευση προϋπηρεσίας
-                service.mark_as_verified(request.user)
+                service.mark_as_verified(get_real_user(request.user))
                 
                 log_action(
                     request,
