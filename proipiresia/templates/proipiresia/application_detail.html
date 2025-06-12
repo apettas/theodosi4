@@ -87,83 +87,6 @@
     
     <div class="row">
         <div class="col-md-4">
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Στοιχεία Αίτησης</h5>
-                </div>
-                <div class="card-body">
-                    <table class="table table-borderless">
-                        <tr>
-                            <th class="w-40">Εκπαιδευτικός:</th>
-                            <td>
-                                <a href="{% url 'teacher-detail' application.teacher.id %}">
-                                    {{ application.teacher.last_name }} {{ application.teacher.first_name }}
-                                </a>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>Υπηρεσία:</th>
-                            <td>{{ application.current_service }}</td>
-                        </tr>
-                        <tr>
-                            <th>Σχολικό Έτος:</th>
-                            <td>{{ application.school_year }}</td>
-                        </tr>
-                        <tr>
-                            <th>Τύπος Εκπ/κού:</th>
-                            <td>{{ application.employee_type }}</td>
-                        </tr>
-                        <tr>
-                            <th>Φάση Πρόσληψης:</th>
-                            <td>{{ application.recruitment_phase|default:"Δεν έχει οριστεί" }}</td>
-                        </tr>
-                        <tr>
-                            <th>Ημ. Υποβολής:</th>
-                            <td>{{ application.submission_date|date:"d/m/Y"|default:"Δεν έχει οριστεί" }}</td>
-                        </tr>
-                        <tr>
-                            <th>Σχόλια:</th>
-                            <td>{{ application.submission_comments|default:"Δεν υπάρχουν σχόλια" }}</td>
-                        </tr>
-                        <tr>
-                            <th>Αρ. Πρωτοκόλλου:</th>
-                            <td>{{ application.protocol_number|default:"Δεν έχει οριστεί" }}</td>
-                        </tr>
-                        <tr>
-                            <th>ΠΥΣΕΕΠ:</th>
-                            <td>
-                                {% if application.pyseep %}
-                                {{ application.pyseep.act_number }} ({{ application.pyseep.date|date:"d/m/Y" }})
-                                {% else %}
-                                <span class="text-muted">Δεν έχει οριστεί</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>Κατάσταση:</th>
-                            <td>
-                                {% if application.status == 'NEW' %}
-                                <span class="badge bg-secondary">Νέα αίτηση</span>
-                                {% elif application.status == 'PENDING_DOCS' %}
-                                <span class="badge bg-warning text-dark">Σε αναμονή δικαιολογητικών</span>
-                                {% elif application.status == 'READY_FOR_PYSEEP' %}
-                                <span class="badge bg-info">Έτοιμη για ΠΥΣΕΕΠ</span>
-                                {% elif application.status == 'COMPLETED' %}
-                                <span class="badge bg-success">Ολοκληρωμένη από ΠΥΣΕΕΠ</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>Έκδοση:</th>
-                            <td>{{ application.version }}</td>
-                        </tr>
-                        <tr>
-                            <th>Ημ. Δημιουργίας:</th>
-                            <td>{{ application.created_at|date:"d/m/Y H:i" }}</td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
             
             {% if application.application_file %}
             <div class="card mb-4">
@@ -178,60 +101,97 @@
             </div>
             {% endif %}
             
-            {% if application.status != 'COMPLETED' %}
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Αλλαγή Κατάστασης</h5>
-                </div>
-                <div class="card-body">
-                    {% if has_unverified_services %}
-                    <div class="alert alert-warning" role="alert">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>Προσοχή!</strong> Υπάρχουν {{ unverified_services_count }} προϋπηρεσίες που δεν έχουν ελεγχθεί.
-                        Δεν μπορείτε να αλλάξετε την κατάσταση σε "Έτοιμη για ΠΥΣΕΕΠ" ή "Ολοκληρωμένη από ΠΥΣΕΕΠ"
-                        μέχρι να ελέγξετε όλες τις προϋπηρεσίες.
-                    </div>
-                    {% endif %}
-                    <form method="post" action="{% url 'change-application-status' application.id %}">
-                        {% csrf_token %}
-                        <div class="mb-3">
-                            <label for="{{ status_form.status.id_for_label }}" class="form-label">{{ status_form.status.label }}</label>
-                            {{ status_form.status }}
-                        </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-2"></i>Αποθήκευση
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-            {% endif %}
             
-            <div class="card">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Συνολική Προϋπηρεσία</h5>
-                </div>
-                <div class="card-body text-center">
-                    <div class="row">
-                        <div class="col-4">
-                            <div class="display-6">{{ total_experience.years }}</div>
-                            <p class="text-muted">Έτη</p>
-                        </div>
-                        <div class="col-4">
-                            <div class="display-6">{{ total_experience.months }}</div>
-                            <p class="text-muted">Μήνες</p>
-                        </div>
-                        <div class="col-4">
-                            <div class="display-6">{{ total_experience.days }}</div>
-                            <p class="text-muted">Ημέρες</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
         
-        <div class="col-md-8">
+        <div class="col-md-12">
+            <!-- Στοιχεία Αίτησης - Μετακινήθηκαν πάνω από τις προϋπηρεσίες -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Στοιχεία Αίτησης</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th class="w-40">Εκπαιδευτικός:</th>
+                                    <td>
+                                        <a href="{% url 'teacher-detail' application.teacher.id %}">
+                                            {{ application.teacher.last_name }} {{ application.teacher.first_name }}
+                                        </a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Υπηρεσία:</th>
+                                    <td>{{ application.current_service }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Σχολικό Έτος:</th>
+                                    <td>{{ application.school_year }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Τύπος Εκπ/κού:</th>
+                                    <td>{{ application.employee_type }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Φάση Πρόσληψης:</th>
+                                    <td>{{ application.recruitment_phase|default:"Δεν έχει οριστεί" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Ημ. Υποβολής:</th>
+                                    <td>{{ application.submission_date|date:"d/m/Y"|default:"Δεν έχει οριστεί" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th>Σχόλια:</th>
+                                    <td>{{ application.submission_comments|default:"Δεν υπάρχουν σχόλια" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Αρ. Πρωτοκόλλου:</th>
+                                    <td>{{ application.protocol_number|default:"Δεν έχει οριστεί" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>ΠΥΣΕΕΠ:</th>
+                                    <td>
+                                        {% if application.pyseep %}
+                                        {{ application.pyseep.act_number }} ({{ application.pyseep.date|date:"d/m/Y" }})
+                                        {% else %}
+                                        <span class="text-muted">Δεν έχει οριστεί</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Κατάσταση:</th>
+                                    <td>
+                                        {% if application.status == 'NEW' %}
+                                        <span class="badge bg-secondary">Νέα αίτηση</span>
+                                        {% elif application.status == 'PENDING_DOCS' %}
+                                        <span class="badge bg-warning text-dark">Σε αναμονή δικαιολογητικών</span>
+                                        {% elif application.status == 'READY_FOR_PYSEEP' %}
+                                        <span class="badge bg-info">Έτοιμη για ΠΥΣΕΕΠ</span>
+                                        {% elif application.status == 'COMPLETED' %}
+                                        <span class="badge bg-success">Ολοκληρωμένη από ΠΥΣΕΕΠ</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Έκδοση:</th>
+                                    <td>{{ application.version }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Ημ. Δημιουργίας:</th>
+                                    <td>{{ application.created_at|date:"d/m/Y H:i" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="card">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas fa-history me-2"></i>Προϋπηρεσίες</h5>
@@ -414,6 +374,60 @@
                     {% endif %}
                 </div>
             </div>
+            
+            <!-- Συνολική Προϋπηρεσία - Μετακινήθηκε κάτω από τις προϋπηρεσίες -->
+            <div class="card mt-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Συνολική Προϋπηρεσία</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="row">
+                        <div class="col-4">
+                            <div class="display-6">{{ total_experience.years }}</div>
+                            <p class="text-muted">Έτη</p>
+                        </div>
+                        <div class="col-4">
+                            <div class="display-6">{{ total_experience.months }}</div>
+                            <p class="text-muted">Μήνες</p>
+                        </div>
+                        <div class="col-4">
+                            <div class="display-6">{{ total_experience.days }}</div>
+                            <p class="text-muted">Ημέρες</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Αλλαγή Κατάστασης - Μετακινήθηκε κάτω από τη Συνολική Προϋπηρεσία -->
+            {% if application.status != 'COMPLETED' %}
+            <div class="card mt-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Αλλαγή Κατάστασης</h5>
+                </div>
+                <div class="card-body">
+                    {% if has_unverified_services %}
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Προσοχή!</strong> Υπάρχουν {{ unverified_services_count }} προϋπηρεσίες που δεν έχουν ελεγχθεί.
+                        Δεν μπορείτε να αλλάξετε την κατάσταση σε "Έτοιμη για ΠΥΣΕΕΠ" ή "Ολοκληρωμένη από ΠΥΣΕΕΠ"
+                        μέχρι να ελέγξετε όλες τις προϋπηρεσίες.
+                    </div>
+                    {% endif %}
+                    <form method="post" action="{% url 'change-application-status' application.id %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="{{ status_form.status.id_for_label }}" class="form-label">{{ status_form.status.label }}</label>
+                            {{ status_form.status }}
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Αποθήκευση
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

@@ -18,7 +18,14 @@ class GreekDateInput(forms.DateInput):
     
     def format_value(self, value):
         if value:
-            return value.strftime('%d/%m/%Y')
+            # Αν είναι ήδη string, το επιστρέφουμε όπως είναι
+            if isinstance(value, str):
+                return value
+            # Αν είναι date/datetime object, το μετατρέπουμε
+            try:
+                return value.strftime('%d/%m/%Y')
+            except AttributeError:
+                return str(value)
         return ''
 
 # Φόρμα σύνδεσης χρήστη
@@ -263,3 +270,15 @@ class ReportForm(forms.Form):
         label='Μορφή Αρχείου',
         widget=forms.Select(attrs={'class': 'form-control'})
     )
+
+
+# Φόρμα για δημιουργία ΠΥΣΕΕΠ
+class PYSEEPForm(forms.ModelForm):
+    class Meta:
+        model = PYSEEP
+        fields = ['act_number', 'date', 'school_year']
+        widgets = {
+            'act_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'date': GreekDateInput(),
+            'school_year': forms.Select(attrs={'class': 'form-control'}),
+        }

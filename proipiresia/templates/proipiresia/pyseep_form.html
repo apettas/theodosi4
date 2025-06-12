@@ -1,0 +1,86 @@
+{% extends 'proipiresia/base.html' %}
+
+{% block title %}Νέο ΠΥΣΕΕΠ - Σύστημα Αναγνώρισης Προϋπηρεσιών{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Αρχική</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Νέο ΠΥΣΕΕΠ</li>
+        </ol>
+    </nav>
+    
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">
+                <i class="fas fa-plus me-2"></i>Δημιουργία Νέου ΠΥΣΕΕΠ
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="post" novalidate>
+                {% csrf_token %}
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.act_number.id_for_label }}" class="form-label">{{ form.act_number.label }} <span class="text-danger">*</span></label>
+                        {{ form.act_number }}
+                        {% if form.act_number.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.act_number.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="form-text">Εισάγετε τον αριθμό πράξης του ΠΥΣΕΕΠ</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.date.id_for_label }}" class="form-label">{{ form.date.label }} <span class="text-danger">*</span></label>
+                        {{ form.date }}
+                        {% if form.date.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.date.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="form-text">Εισάγετε την ημερομηνία του ΠΥΣΕΕΠ</div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.school_year.id_for_label }}" class="form-label">{{ form.school_year.label }} <span class="text-danger">*</span></label>
+                        {{ form.school_year }}
+                        {% if form.school_year.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.school_year.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="form-text">Επιλέξτε το σχολικό έτος</div>
+                    </div>
+                </div>
+                
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}
+                    {{ error }}
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{% url 'home' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-2"></i>Ακύρωση
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Δημιουργία
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

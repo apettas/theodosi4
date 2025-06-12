@@ -32,6 +32,9 @@ urlpatterns = [
     # Αναφορές
     path('reports/', views.generate_report, name='generate-report'),
     
+    # ΠΥΣΕΕΠ
+    path('pyseep/new/', views.PYSEEPCreateView.as_view(), name='pyseep-create'),
+    
     # AJAX endpoints
     path('ajax/create-service-provider/', views.create_service_provider_ajax, name='create-service-provider-ajax'),
     path('ajax/create-pyseep/', views.create_pyseep_ajax, name='create-pyseep-ajax'),

@@ -47,10 +47,10 @@ from .models import (
     EmploymentRelation, Application, PriorService, AuditLog
 )
 from .forms import (
-    CustomAuthenticationForm, CustomUserCreationForm, TeacherForm, 
-    TeacherSpecialtyForm, ApplicationForm, ApplicationStatusForm, 
-    PriorServiceForm, VerifyPriorServiceForm, ApplicationSearchForm, 
-    PriorServiceSearchForm, ReportForm
+    CustomAuthenticationForm, CustomUserCreationForm, TeacherForm,
+    TeacherSpecialtyForm, ApplicationForm, ApplicationStatusForm,
+    PriorServiceForm, VerifyPriorServiceForm, ApplicationSearchForm,
+    PriorServiceSearchForm, ReportForm, PYSEEPForm
 )
 
 # Βοηθητική συνάρτηση για την καταγραφή ενεργειών
@@ -1170,6 +1170,33 @@ def create_service_provider_ajax(request):
             return JsonResponse({'success': False, 'error': f'Σφάλμα κατά τη δημιουργία: {str(e)}'})
     
     return JsonResponse({'success': False, 'error': 'Μη έγκυρη μέθοδος.'})
+
+
+# Δημιουργία ΠΥΣΕΕΠ
+class PYSEEPCreateView(LoginRequiredMixin, CreateView):
+    model = PYSEEP
+    form_class = PYSEEPForm
+    template_name = 'proipiresia/pyseep_form.html'
+    success_url = reverse_lazy('home')
+    
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        
+        # Καταγραφή της ενέργειας
+        log_action(
+            self.request,
+            'CREATE',
+            'OTHER',
+            self.object.id,
+            new_values=json.dumps({
+                'act_number': self.object.act_number,
+                'date': self.object.date.strftime('%Y-%m-%d'),
+                'school_year': self.object.school_year.name
+            })
+        )
+        
+        messages.success(self.request, f'Το ΠΥΣΕΕΠ {self.object.act_number} δημιουργήθηκε επιτυχώς.')
+        return response
 
 
 @login_required
