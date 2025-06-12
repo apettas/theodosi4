@@ -1,0 +1,34 @@
+
+
+services:
+  web:
+    build: .
+    # Η εντολή εκτέλεσης (CMD) ορίζεται στο Dockerfile.
+    # Μπορεί να παρακαμφθεί εδώ αν χρειάζεται:
+    # command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app  # Mount τον τρέχοντα φάκελο στο /app του container (για development)
+    ports:
+      - "8000:8000"
+    environment:
+      - SECRET_KEY=your_django_secret_key_here  # Άλλαξέ το!
+      - DEBUG=1                               # Όρισέ το σε 0 για production
+      - DATABASE_URL=postgres://db_user:db_password@db:5432/db_name # Παράδειγμα
+    depends_on:
+      - db
+    # restart: unless-stopped # Για production
+
+  db:
+    image: postgres:13-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=db_user
+      - POSTGRES_PASSWORD=db_password
+      - POSTGRES_DB=db_name
+    # ports: # Αφαίρεσε το σχόλιο αν θες να εκθέσεις την πόρτα της DB στον host (για debugging)
+      # - "5432:5432"
+    # restart: unless-stopped # Για production
+
+volumes:
+  postgres_data: # Διατηρεί τα δεδομένα της βάσης ακόμα και αν το container σταματήσει/διαγραφεί
