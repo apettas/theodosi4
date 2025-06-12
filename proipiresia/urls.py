@@ -19,6 +19,7 @@ urlpatterns = [
     path('applications/<int:pk>/', views.ApplicationDetailView.as_view(), name='application-detail'),
     path('applications/new/', views.ApplicationCreateView.as_view(), name='application-create'),
     path('applications/<int:pk>/edit/', views.ApplicationUpdateView.as_view(), name='application-update'),
+    path('applications/<int:pk>/delete/', views.ApplicationDeleteView.as_view(), name='application-delete'),
     path('applications/<int:pk>/change-status/', views.change_application_status, name='change-application-status'),
     path('applications/<int:pk>/new-version/', views.create_application_version, name='create-application-version'),
     
@@ -30,4 +31,8 @@ urlpatterns = [
     
     # Αναφορές
     path('reports/', views.generate_report, name='generate-report'),
+    
+    # AJAX endpoints
+    path('ajax/create-service-provider/', views.create_service_provider_ajax, name='create-service-provider-ajax'),
+    path('ajax/create-pyseep/', views.create_pyseep_ajax, name='create-pyseep-ajax'),
 ]

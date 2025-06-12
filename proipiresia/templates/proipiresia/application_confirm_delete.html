@@ -1,0 +1,90 @@
+{% extends 'proipiresia/base.html' %}
+
+{% block title %}Διαγραφή Αίτησης - {{ application.teacher }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Αρχική</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'application-list' %}">Αιτήσεις</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'application-detail' application.id %}">Αίτηση {{ application.id }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Διαγραφή</li>
+        </ol>
+    </nav>
+    
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Επιβεβαίωση Διαγραφής</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Προσοχή!</strong> Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.
+                    </div>
+                    
+                    <p class="mb-4">Είστε σίγουροι ότι θέλετε να διαγράψετε την παρακάτω αίτηση;</p>
+                    
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title">Στοιχεία Αίτησης</h6>
+                            <table class="table table-borderless mb-0">
+                                <tr>
+                                    <th class="w-30">ID Αίτησης:</th>
+                                    <td>{{ application.id }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Εκπαιδευτικός:</th>
+                                    <td>{{ application.teacher }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Σχολικό Έτος:</th>
+                                    <td>{{ application.school_year }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Υπηρεσία:</th>
+                                    <td>{{ application.current_service }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Τύπος Εκπαιδευτικού:</th>
+                                    <td>{{ application.employee_type }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Κατάσταση:</th>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ application.get_status_display }}</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Ημερομηνία Δημιουργίας:</th>
+                                    <td>{{ application.created_at|date:"d/m/Y H:i" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    {% if application.priorservice_set.count > 0 %}
+                    <div class="alert alert-info mt-3" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Αυτή η αίτηση περιέχει {{ application.priorservice_set.count }} προϋπηρεσία/ες που θα διαγραφούν επίσης.
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash me-2"></i>Ναι, Διαγραφή Αίτησης
+                        </button>
+                    </form>
+                    <a href="{% url 'application-detail' application.id %}" class="btn btn-secondary ms-2">
+                        <i class="fas fa-times me-2"></i>Ακύρωση
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

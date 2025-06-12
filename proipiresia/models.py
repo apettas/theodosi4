@@ -388,6 +388,44 @@ class PriorService(models.Model):
             created_by=self.updated_by,
             version_id=self.version_id + 1
         )
+    
+    def get_history_records(self):
+        """Επιστρέφει το ιστορικό της προϋπηρεσίας από προηγούμενες αιτήσεις"""
+        # Αναζήτηση παρόμοιων προϋπηρεσιών με βάση τα κύρια χαρακτηριστικά
+        similar_services = PriorService.objects.filter(
+            service_provider=self.service_provider,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            application__teacher=self.application.teacher,
+            application__status='COMPLETED'  # Μόνο ολοκληρωμένες αιτήσεις
+        ).exclude(
+            id=self.id
+        ).select_related(
+            'application',
+            'application__pyseep',
+            'application__school_year',
+            'verified_by'
+        ).order_by('-application__created_at')
+        
+        history_records = []
+        for service in similar_services:
+            record = {
+                'application': service.application,
+                'verified_by': service.verified_by,
+                'verified_date': service.verified,
+                'pyseep': service.application.pyseep,
+                'service_id': service.id,
+                'version': service.application.version,
+                'school_year': service.application.school_year,
+                'employment_relation': service.employment_relation,
+                'protocol_number': service.protocol_number,
+                'years': service.years,
+                'months': service.months,
+                'days': service.days
+            }
+            history_records.append(record)
+        
+        return history_records
 
 # Μοντέλο για την καταγραφή ενεργειών (Audit Trail)
 class AuditLog(models.Model):

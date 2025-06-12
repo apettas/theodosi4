@@ -111,6 +111,32 @@ USE_I18N = True
 
 USE_TZ = True
 
+# Ελληνικά formats για ημερομηνίες
+USE_L10N = True
+
+# Custom date formats για την Ελλάδα
+DATE_FORMAT = 'd/m/Y'
+DATETIME_FORMAT = 'd/m/Y H:i'
+SHORT_DATE_FORMAT = 'd/m/Y'
+SHORT_DATETIME_FORMAT = 'd/m/Y H:i'
+
+# Input formats για φόρμες
+DATE_INPUT_FORMATS = [
+    '%d/%m/%Y',  # 25/12/2023
+    '%d-%m-%Y',  # 25-12-2023
+    '%d.%m.%Y',  # 25.12.2023
+    '%Y-%m-%d',  # 2023-12-25 (για συμβατότητα)
+]
+
+DATETIME_INPUT_FORMATS = [
+    '%d/%m/%Y %H:%M:%S',
+    '%d/%m/%Y %H:%M',
+    '%d-%m-%Y %H:%M:%S',
+    '%d-%m-%Y %H:%M',
+    '%Y-%m-%d %H:%M:%S',
+    '%Y-%m-%d %H:%M',
+]
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/

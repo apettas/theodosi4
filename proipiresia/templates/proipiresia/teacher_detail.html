@@ -94,28 +94,6 @@
                 </div>
             </div>
             
-            <div class="card">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Συνολική Προϋπηρεσία</h5>
-                </div>
-                <div class="card-body text-center">
-                    <div class="row">
-                        <div class="col-4">
-                            <div class="display-6">{{ total_experience.years }}</div>
-                            <p class="text-muted">Έτη</p>
-                        </div>
-                        <div class="col-4">
-                            <div class="display-6">{{ total_experience.months }}</div>
-                            <p class="text-muted">Μήνες</p>
-                        </div>
-                        <div class="col-4">
-                            <div class="display-6">{{ total_experience.days }}</div>
-                            <p class="text-muted">Ημέρες</p>
-                        </div>
-                    </div>
-                    <p class="text-muted small mt-3">Συνολική αναγνωρισμένη προϋπηρεσία από ολοκληρωμένες αιτήσεις</p>
-                </div>
-            </div>
         </div>
         
         <div class="col-md-8">
@@ -165,6 +143,9 @@
                                             {% if application.status != 'COMPLETED' %}
                                             <a href="{% url 'application-update' application.id %}" class="btn btn-sm btn-warning" data-bs-toggle="tooltip" title="Επεξεργασία">
                                                 <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'application-delete' application.id %}" class="btn btn-sm btn-danger" data-bs-toggle="tooltip" title="Διαγραφή">
+                                                <i class="fas fa-trash"></i>
                                             </a>
                                             {% else %}
                                             <a href="{% url 'create-application-version' application.id %}" class="btn btn-sm btn-info" data-bs-toggle="tooltip" title="Νέα Έκδοση">

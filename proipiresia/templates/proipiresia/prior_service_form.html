@@ -69,7 +69,12 @@
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label for="{{ form.service_provider.id_for_label }}" class="form-label">{{ form.service_provider.label }} <span class="text-danger">*</span></label>
-                                {{ form.service_provider }}
+                                <div class="input-group">
+                                    {{ form.service_provider }}
+                                    <button type="button" class="btn btn-outline-primary" id="addServiceProviderBtn" data-bs-toggle="tooltip" title="Προσθήκη νέου φορέα">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
                                 {% if form.service_provider.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.service_provider.errors %}
@@ -234,6 +239,39 @@
             </div>
         </div>
     </div>
+    
+    <!-- Modal για προσθήκη νέου φορέα προϋπηρεσίας -->
+    <div class="modal fade" id="addServiceProviderModal" tabindex="-1" aria-labelledby="addServiceProviderModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addServiceProviderModalLabel">
+                        <i class="fas fa-plus me-2"></i>Προσθήκη Νέου Φορέα Προϋπηρεσίας
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addServiceProviderForm">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="newServiceProviderName" class="form-label">Όνομα Φορέα <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="newServiceProviderName" name="name" required>
+                            <div class="form-text">Εισάγετε το όνομα του νέου φορέα προϋπηρεσίας</div>
+                        </div>
+                        <div id="serviceProviderError" class="alert alert-danger d-none"></div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Ακύρωση
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveServiceProviderBtn">
+                        <i class="fas fa-save me-2"></i>Αποθήκευση
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -282,6 +320,107 @@
             startDateInput.addEventListener('change', calculateDuration);
             endDateInput.addEventListener('change', calculateDuration);
         }
+        
+        // Λειτουργικότητα για προσθήκη νέου φορέα προϋπηρεσίας
+        const addServiceProviderBtn = document.getElementById('addServiceProviderBtn');
+        const addServiceProviderModal = new bootstrap.Modal(document.getElementById('addServiceProviderModal'));
+        const saveServiceProviderBtn = document.getElementById('saveServiceProviderBtn');
+        const serviceProviderSelect = document.getElementById('{{ form.service_provider.id_for_label }}');
+        const serviceProviderError = document.getElementById('serviceProviderError');
+        const newServiceProviderName = document.getElementById('newServiceProviderName');
+        
+        // Άνοιγμα modal
+        addServiceProviderBtn.addEventListener('click', function() {
+            // Καθαρισμός φόρμας
+            newServiceProviderName.value = '';
+            serviceProviderError.classList.add('d-none');
+            addServiceProviderModal.show();
+        });
+        
+        // Αποθήκευση νέου φορέα
+        saveServiceProviderBtn.addEventListener('click', function() {
+            const name = newServiceProviderName.value.trim();
+            
+            if (!name) {
+                showError('Το όνομα του φορέα είναι υποχρεωτικό.');
+                return;
+            }
+            
+            // Απενεργοποίηση κουμπιού κατά τη διάρκεια της αίτησης
+            saveServiceProviderBtn.disabled = true;
+            saveServiceProviderBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Αποθήκευση...';
+            
+            // AJAX αίτηση
+            fetch('{% url "create-service-provider-ajax" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: 'name=' + encodeURIComponent(name)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Προσθήκη νέας επιλογής στο select
+                    const option = new Option(data.name, data.id, true, true);
+                    serviceProviderSelect.add(option);
+                    
+                    // Κλείσιμο modal
+                    addServiceProviderModal.hide();
+                    
+                    // Εμφάνιση μηνύματος επιτυχίας
+                    showSuccessMessage('Ο φορέας προϋπηρεσίας δημιουργήθηκε επιτυχώς!');
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('Σφάλμα κατά τη δημιουργία του φορέα.');
+            })
+            .finally(() => {
+                // Επαναφορά κουμπιού
+                saveServiceProviderBtn.disabled = false;
+                saveServiceProviderBtn.innerHTML = '<i class="fas fa-save me-2"></i>Αποθήκευση';
+            });
+        });
+        
+        // Συνάρτηση για εμφάνιση σφάλματος
+        function showError(message) {
+            serviceProviderError.textContent = message;
+            serviceProviderError.classList.remove('d-none');
+        }
+        
+        // Συνάρτηση για εμφάνιση μηνύματος επιτυχίας
+        function showSuccessMessage(message) {
+            // Δημιουργία προσωρινού alert
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+            alertDiv.style.top = '20px';
+            alertDiv.style.right = '20px';
+            alertDiv.style.zIndex = '9999';
+            alertDiv.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alertDiv);
+            
+            // Αυτόματη αφαίρεση μετά από 3 δευτερόλεπτα
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.parentNode.removeChild(alertDiv);
+                }
+            }, 3000);
+        }
+        
+        // Enter key στο input του modal
+        newServiceProviderName.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveServiceProviderBtn.click();
+            }
+        });
     });
 </script>
 {% endblock %}

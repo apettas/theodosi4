@@ -2,6 +2,22 @@
 
 {% block title %}Αιτήσεις - Σύστημα Αναγνώρισης Προϋπηρεσιών{% endblock %}
 
+{% block extra_css %}
+<style>
+.sortable-header {
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s ease;
+}
+.sortable-header:hover {
+    background-color: #f8f9fa !important;
+}
+.sortable-header i {
+    margin-left: 0.5rem;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -63,14 +79,118 @@
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Εκπαιδευτικός</th>
-                            <th>Υπηρεσία</th>
-                            <th>Σχολικό Έτος</th>
-                            <th>Τύπος</th>
-                            <th>Κατάσταση</th>
-                            <th>ΠΥΣΕΕΠ</th>
-                            <th>Ημερομηνία</th>
+                            <th class="sortable-header">
+                                <a href="?sort=id&order={% if current_sort == 'id' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% for key, value in request.GET.items %}{% if key != 'sort' and key != 'order' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="text-decoration-none text-dark">
+                                    ID
+                                    {% if current_sort == 'id' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th class="sortable-header">
+                                <a href="?sort=teacher__last_name&order={% if current_sort == 'teacher__last_name' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% for key, value in request.GET.items %}{% if key != 'sort' and key != 'order' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="text-decoration-none text-dark">
+                                    Εκπαιδευτικός
+                                    {% if current_sort == 'teacher__last_name' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th class="sortable-header">
+                                <a href="?sort=current_service__name&order={% if current_sort == 'current_service__name' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% for key, value in request.GET.items %}{% if key != 'sort' and key != 'order' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="text-decoration-none text-dark">
+                                    Υπηρεσία
+                                    {% if current_sort == 'current_service__name' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th class="sortable-header">
+                                <a href="?sort=school_year__name&order={% if current_sort == 'school_year__name' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% for key, value in request.GET.items %}{% if key != 'sort' and key != 'order' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="text-decoration-none text-dark">
+                                    Σχολικό Έτος
+                                    {% if current_sort == 'school_year__name' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th class="sortable-header">
+                                <a href="?sort=employee_type__name&order={% if current_sort == 'employee_type__name' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% for key, value in request.GET.items %}{% if key != 'sort' and key != 'order' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="text-decoration-none text-dark">
+                                    Τύπος
+                                    {% if current_sort == 'employee_type__name' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th class="sortable-header">
+                                <a href="?sort=status&order={% if current_sort == 'status' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% for key, value in request.GET.items %}{% if key != 'sort' and key != 'order' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="text-decoration-none text-dark">
+                                    Κατάσταση
+                                    {% if current_sort == 'status' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th class="sortable-header">
+                                <a href="?sort=pyseep__act_number&order={% if current_sort == 'pyseep__act_number' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% for key, value in request.GET.items %}{% if key != 'sort' and key != 'order' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="text-decoration-none text-dark">
+                                    ΠΥΣΕΕΠ
+                                    {% if current_sort == 'pyseep__act_number' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th class="sortable-header">
+                                <a href="?sort=created_at&order={% if current_sort == 'created_at' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% for key, value in request.GET.items %}{% if key != 'sort' and key != 'order' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="text-decoration-none text-dark">
+                                    Ημερομηνία
+                                    {% if current_sort == 'created_at' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
                             <th>Ενέργειες</th>
                         </tr>
                     </thead>
@@ -113,6 +233,9 @@
                                     {% if application.status != 'COMPLETED' %}
                                     <a href="{% url 'application-update' application.id %}" class="btn btn-sm btn-warning" data-bs-toggle="tooltip" title="Επεξεργασία">
                                         <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'application-delete' application.id %}" class="btn btn-sm btn-danger" data-bs-toggle="tooltip" title="Διαγραφή">
+                                        <i class="fas fa-trash"></i>
                                     </a>
                                     {% else %}
                                     <a href="{% url 'create-application-version' application.id %}" class="btn btn-sm btn-info" data-bs-toggle="tooltip" title="Νέα Έκδοση">

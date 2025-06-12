@@ -139,7 +139,12 @@
                     </div>
                     <div class="col-md-4">
                         <label for="{{ form.pyseep.id_for_label }}" class="form-label">{{ form.pyseep.label }}</label>
-                        {{ form.pyseep }}
+                        <div class="input-group">
+                            {{ form.pyseep }}
+                            <button type="button" class="btn btn-outline-primary" id="addPyseepBtn" data-bs-toggle="tooltip" title="Προσθήκη νέου ΠΥΣΕΕΠ">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
                         {% if form.pyseep.errors %}
                         <div class="invalid-feedback d-block">
                             {% for error in form.pyseep.errors %}
@@ -205,6 +210,54 @@
             </form>
         </div>
     </div>
+    
+    <!-- Modal για προσθήκη νέου ΠΥΣΕΕΠ -->
+    <div class="modal fade" id="addPyseepModal" tabindex="-1" aria-labelledby="addPyseepModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addPyseepModalLabel">
+                        <i class="fas fa-plus me-2"></i>Προσθήκη Νέου ΠΥΣΕΕΠ
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addPyseepForm">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="newPyseepActNumber" class="form-label">Αριθμός Πράξης <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="newPyseepActNumber" name="act_number" required>
+                            <div class="form-text">Εισάγετε τον αριθμό πράξης του ΠΥΣΕΕΠ</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newPyseepDate" class="form-label">Ημερομηνία <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="newPyseepDate" name="date" required placeholder="dd/mm/yyyy">
+                            <div class="form-text">Εισάγετε την ημερομηνία του ΠΥΣΕΕΠ (π.χ. 15/12/2024)</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newPyseepSchoolYear" class="form-label">Σχολικό Έτος <span class="text-danger">*</span></label>
+                            <select class="form-control" id="newPyseepSchoolYear" name="school_year" required>
+                                <option value="">Επιλέξτε σχολικό έτος</option>
+                                {% for school_year in school_years %}
+                                <option value="{{ school_year.id }}">{{ school_year.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Επιλέξτε το σχολικό έτος</div>
+                        </div>
+                        <div id="pyseepError" class="alert alert-danger d-none"></div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Ακύρωση
+                    </button>
+                    <button type="button" class="btn btn-primary" id="savePyseepBtn">
+                        <i class="fas fa-save me-2"></i>Αποθήκευση
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -220,6 +273,124 @@
             if (teacherId) {
                 document.getElementById('{{ form.teacher.id_for_label }}').value = teacherId;
             }
+        }
+        
+        // Λειτουργικότητα για προσθήκη νέου ΠΥΣΕΕΠ
+        const addPyseepBtn = document.getElementById('addPyseepBtn');
+        const addPyseepModal = new bootstrap.Modal(document.getElementById('addPyseepModal'));
+        const savePyseepBtn = document.getElementById('savePyseepBtn');
+        const pyseepSelect = document.getElementById('{{ form.pyseep.id_for_label }}');
+        const pyseepError = document.getElementById('pyseepError');
+        const newPyseepActNumber = document.getElementById('newPyseepActNumber');
+        const newPyseepDate = document.getElementById('newPyseepDate');
+        const newPyseepSchoolYear = document.getElementById('newPyseepSchoolYear');
+        
+        // Άνοιγμα modal
+        addPyseepBtn.addEventListener('click', function() {
+            // Καθαρισμός φόρμας
+            newPyseepActNumber.value = '';
+            newPyseepDate.value = '';
+            newPyseepSchoolYear.value = '';
+            pyseepError.classList.add('d-none');
+            addPyseepModal.show();
+        });
+        
+        // Αποθήκευση νέου ΠΥΣΕΕΠ
+        savePyseepBtn.addEventListener('click', function() {
+            const actNumber = newPyseepActNumber.value.trim();
+            const date = newPyseepDate.value.trim();
+            const schoolYear = newPyseepSchoolYear.value.trim();
+            
+            if (!actNumber) {
+                showError('Ο αριθμός πράξης είναι υποχρεωτικός.');
+                return;
+            }
+            
+            if (!date) {
+                showError('Η ημερομηνία είναι υποχρεωτική.');
+                return;
+            }
+            
+            if (!schoolYear) {
+                showError('Το σχολικό έτος είναι υποχρεωτικό.');
+                return;
+            }
+            
+            // Έλεγχος format ημερομηνίας (dd/mm/yyyy)
+            const dateRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+            if (!dateRegex.test(date)) {
+                showError('Η ημερομηνία πρέπει να είναι στη μορφή dd/mm/yyyy (π.χ. 15/12/2024).');
+                return;
+            }
+            
+            // Απενεργοποίηση κουμπιού κατά τη διάρκεια της αίτησης
+            savePyseepBtn.disabled = true;
+            savePyseepBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Αποθήκευση...';
+            
+            // AJAX αίτηση
+            fetch('{% url "create-pyseep-ajax" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: 'act_number=' + encodeURIComponent(actNumber) +
+                      '&date=' + encodeURIComponent(date) +
+                      '&school_year=' + encodeURIComponent(schoolYear)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Προσθήκη νέας επιλογής στο select
+                    const option = new Option(data.display_text, data.id, true, true);
+                    pyseepSelect.add(option);
+                    
+                    // Κλείσιμο modal
+                    addPyseepModal.hide();
+                    
+                    // Εμφάνιση μηνύματος επιτυχίας
+                    showSuccessMessage('Το ΠΥΣΕΕΠ δημιουργήθηκε επιτυχώς!');
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('Σφάλμα κατά τη δημιουργία του ΠΥΣΕΕΠ.');
+            })
+            .finally(() => {
+                // Επαναφορά κουμπιού
+                savePyseepBtn.disabled = false;
+                savePyseepBtn.innerHTML = '<i class="fas fa-save me-2"></i>Αποθήκευση';
+            });
+        });
+        
+        // Συνάρτηση για εμφάνιση σφάλματος
+        function showError(message) {
+            pyseepError.textContent = message;
+            pyseepError.classList.remove('d-none');
+        }
+        
+        // Συνάρτηση για εμφάνιση μηνύματος επιτυχίας
+        function showSuccessMessage(message) {
+            // Δημιουργία προσωρινού alert
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+            alertDiv.style.top = '20px';
+            alertDiv.style.right = '20px';
+            alertDiv.style.zIndex = '9999';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            document.body.appendChild(alertDiv);
+            
+            // Αυτόματη αφαίρεση μετά από 3 δευτερόλεπτα
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.parentNode.removeChild(alertDiv);
+                }
+            }, 3000);
         }
     });
 </script>

@@ -2,6 +2,53 @@
 
 {% block title %}Αίτηση #{{ application.id }} - {{ application.teacher.last_name }} {{ application.teacher.first_name }}{% endblock %}
 
+{% block extra_css %}
+<style>
+.history-record {
+    font-size: 0.875rem;
+    background-color: #f8f9fa !important;
+    border-color: #bee5eb !important;
+}
+.history-record .row {
+    margin: 0;
+}
+.history-record .col-md-4 {
+    padding: 0 0.5rem;
+}
+.history-record .col-md-6 {
+    padding: 0 0.5rem;
+}
+.alert-sm {
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+.alert-sm .row {
+    margin: 0;
+}
+.alert-sm .col-md-4 {
+    padding: 0 0.5rem;
+}
+.alert-sm .col-md-6 {
+    padding: 0 0.5rem;
+}
+.service-separator {
+    height: 4px;
+    background: linear-gradient(90deg, #007bff, #6c757d, #007bff);
+    border: none;
+    margin: 0;
+}
+.service-group {
+    border-bottom: 3px solid #dee2e6;
+    margin-bottom: 0.5rem;
+}
+.service-group:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     <nav aria-label="breadcrumb" class="mb-4">
@@ -22,6 +69,9 @@
                 {% if application.status != 'COMPLETED' %}
                 <a href="{% url 'application-update' application.id %}" class="btn btn-warning">
                     <i class="fas fa-edit me-2"></i>Επεξεργασία
+                </a>
+                <a href="{% url 'application-delete' application.id %}" class="btn btn-danger">
+                    <i class="fas fa-trash me-2"></i>Διαγραφή
                 </a>
                 {% else %}
                 <a href="{% url 'create-application-version' application.id %}" class="btn btn-info">
@@ -134,6 +184,14 @@
                     <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Αλλαγή Κατάστασης</h5>
                 </div>
                 <div class="card-body">
+                    {% if has_unverified_services %}
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Προσοχή!</strong> Υπάρχουν {{ unverified_services_count }} προϋπηρεσίες που δεν έχουν ελεγχθεί.
+                        Δεν μπορείτε να αλλάξετε την κατάσταση σε "Έτοιμη για ΠΥΣΕΕΠ" ή "Ολοκληρωμένη από ΠΥΣΕΕΠ"
+                        μέχρι να ελέγξετε όλες τις προϋπηρεσίες.
+                    </div>
+                    {% endif %}
                     <form method="post" action="{% url 'change-application-status' application.id %}">
                         {% csrf_token %}
                         <div class="mb-3">
@@ -206,15 +264,15 @@
                             </thead>
                             <tbody>
                                 {% for service in prior_services %}
-                                <tr>
+                                <tr{% if not service.verified %} class="table-warning"{% endif %}>
                                     <td>{{ service.service_provider }}</td>
                                     <td>{{ service.protocol_number }}</td>
                                     <td>{{ service.employment_relation }}</td>
                                     <td>{{ service.start_date|date:"d/m/Y" }}</td>
                                     <td>{{ service.end_date|date:"d/m/Y" }}</td>
                                     <td>
-                                        {{ service.years }} έτη, 
-                                        {{ service.months }} μήνες, 
+                                        {{ service.years }} έτη,
+                                        {{ service.months }} μήνες,
                                         {{ service.days }} ημέρες
                                     </td>
                                     <td>
@@ -223,13 +281,21 @@
                                             <i class="fas fa-check me-1"></i>Ναι
                                         </span>
                                         {% else %}
-                                        <span class="badge bg-secondary">
-                                            <i class="fas fa-times me-1"></i>Όχι
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>Όχι
                                         </span>
                                         {% endif %}
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
+                                            {% with history_records=service.get_history_records %}
+                                            {% if history_records %}
+                                            <button type="button" class="btn btn-sm btn-info" data-bs-toggle="collapse" data-bs-target="#history-{{ service.id }}" aria-expanded="false" aria-controls="history-{{ service.id }}" title="Προβολή Ιστορικού">
+                                                <i class="fas fa-history"></i>
+                                            </button>
+                                            {% endif %}
+                                            {% endwith %}
+                                            
                                             {% if application.status != 'COMPLETED' %}
                                             <form method="post" action="{% url 'verify-prior-service' service.id %}" class="d-inline">
                                                 {% csrf_token %}
@@ -250,19 +316,81 @@
                                         </div>
                                     </td>
                                 </tr>
+                                {% if service.notes or service.history or service.internal_notes %}
                                 <tr class="table-light">
-                                    <td colspan="8">
-                                        {% if service.history %}
-                                        <strong>Ιστορικό:</strong> {{ service.history|linebreaksbr }}<br>
-                                        {% endif %}
+                                    <td colspan="8" style="padding: 0.5rem 0.75rem; font-size: 0.875rem;">
                                         {% if service.notes %}
-                                        <strong>Παρατηρήσεις:</strong> {{ service.notes|linebreaksbr }}<br>
+                                        <div class="mb-1">
+                                            <strong><i class="fas fa-sticky-note me-1"></i>Παρατηρήσεις:</strong> {{ service.notes|linebreaksbr }}
+                                        </div>
+                                        {% endif %}
+                                        {% if service.history %}
+                                        <div class="mb-1">
+                                            <strong><i class="fas fa-clock me-1"></i>Ιστορικό:</strong> {{ service.history|linebreaksbr }}
+                                        </div>
                                         {% endif %}
                                         {% if service.internal_notes %}
-                                        <strong>Εσωτερικές Σημειώσεις:</strong> {{ service.internal_notes|linebreaksbr }}
+                                        <div class="mb-1">
+                                            <strong><i class="fas fa-lock me-1"></i>Εσωτερικές Σημειώσεις:</strong> {{ service.internal_notes|linebreaksbr }}
+                                        </div>
                                         {% endif %}
                                     </td>
                                 </tr>
+                                {% endif %}
+                                {% with history_records=service.get_history_records %}
+                                {% if history_records %}
+                                <tr class="table-light collapse" id="history-{{ service.id }}">
+                                    <td colspan="8">
+                                        <div class="mb-3">
+                                            <strong><i class="fas fa-history me-2"></i>Ιστορικό Προηγούμενων Αιτήσεων:</strong>
+                                            <div class="mt-2">
+                                                {% for record in history_records %}
+                                                <div class="bg-light border border-info rounded p-2 mb-2 history-record">
+                                                    <div class="row">
+                                                        <div class="col-md-4">
+                                                            <small>
+                                                                <strong>Αίτηση #{{ record.application.id }}</strong> (v{{ record.version }})<br>
+                                                                <i class="fas fa-calendar me-1"></i>{{ record.application.created_at|date:"d/m/Y" }}<br>
+                                                                <i class="fas fa-graduation-cap me-1"></i>{{ record.school_year }}<br>
+                                                                {% if record.pyseep %}
+                                                                <i class="fas fa-stamp me-1"></i>ΠΥΣΕΕΠ: {{ record.pyseep.act_number }} ({{ record.pyseep.date|date:"d/m/Y" }})
+                                                                {% endif %}
+                                                            </small>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <small>
+                                                                <i class="fas fa-file-alt me-1"></i><strong>Πρωτόκολλο:</strong> {{ record.protocol_number }}<br>
+                                                                <i class="fas fa-briefcase me-1"></i><strong>Σχέση:</strong> {{ record.employment_relation }}<br>
+                                                                <i class="fas fa-clock me-1"></i><strong>Διάρκεια:</strong> {{ record.years }}έ, {{ record.months }}μ, {{ record.days }}η
+                                                            </small>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <small>
+                                                                {% if record.verified_by and record.verified_date %}
+                                                                <i class="fas fa-user-check me-1 text-success"></i><strong>Ελέγχθηκε από:</strong><br>
+                                                                {{ record.verified_by.get_full_name|default:record.verified_by.username }}<br>
+                                                                <i class="fas fa-calendar-check me-1"></i>{{ record.verified_date|date:"d/m/Y H:i" }}
+                                                                {% else %}
+                                                                <i class="fas fa-exclamation-triangle me-1 text-warning"></i><span class="text-muted">Δεν είχε ελεγχθεί</span>
+                                                                {% endif %}
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endwith %}
+                                {% if not forloop.last %}
+                                <tr>
+                                    <td colspan="8" class="p-0">
+                                        <div class="service-separator"></div>
+                                    </td>
+                                </tr>
+                                {% endif %}
                                 {% endfor %}
                             </tbody>
                         </table>

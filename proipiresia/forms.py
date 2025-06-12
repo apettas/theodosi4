@@ -3,10 +3,23 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from .models import (
-    User, Teacher, Specialty, TeacherSpecialty, Service, 
-    SchoolYear, EmployeeType, PYSEEP, ServiceProvider, 
+    User, Teacher, Specialty, TeacherSpecialty, Service,
+    SchoolYear, EmployeeType, PYSEEP, ServiceProvider,
     EmploymentRelation, Application, PriorService
 )
+
+# Custom DateInput widget για ελληνικό format
+class GreekDateInput(forms.DateInput):
+    def __init__(self, attrs=None):
+        default_attrs = {'class': 'form-control', 'placeholder': 'ημ/μμ/εεεε'}
+        if attrs:
+            default_attrs.update(attrs)
+        super().__init__(attrs=default_attrs, format='%d/%m/%Y')
+    
+    def format_value(self, value):
+        if value:
+            return value.strftime('%d/%m/%Y')
+        return ''
 
 # Φόρμα σύνδεσης χρήστη
 class CustomAuthenticationForm(AuthenticationForm):
@@ -70,7 +83,7 @@ class ApplicationForm(forms.ModelForm):
             'school_year': forms.Select(attrs={'class': 'form-control'}),
             'employee_type': forms.Select(attrs={'class': 'form-control'}),
             'recruitment_phase': forms.TextInput(attrs={'class': 'form-control'}),
-            'submission_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'submission_date': GreekDateInput(),
             'submission_comments': forms.TextInput(attrs={'class': 'form-control'}),
             'protocol_number': forms.TextInput(attrs={'class': 'form-control'}),
             'pyseep': forms.Select(attrs={'class': 'form-control'}),
@@ -98,6 +111,27 @@ class ApplicationStatusForm(forms.ModelForm):
         widgets = {
             'status': forms.Select(attrs={'class': 'form-control'}),
         }
+    
+    def clean_status(self):
+        status = self.cleaned_data.get('status')
+        
+        # Έλεγχος αν η κατάσταση αλλάζει σε READY_FOR_PYSEEP ή COMPLETED
+        if status in ['READY_FOR_PYSEEP', 'COMPLETED']:
+            # Έλεγχος αν όλες οι προϋπηρεσίες έχουν ελεγχθεί
+            unverified_services = self.instance.priorservice_set.filter(
+                verified__isnull=True,
+                is_active=True
+            )
+            
+            if unverified_services.exists():
+                unverified_count = unverified_services.count()
+                raise ValidationError(
+                    f'Δεν μπορείτε να αλλάξετε την κατάσταση σε "{self.instance.get_status_display()}" '
+                    f'γιατί υπάρχουν {unverified_count} προϋπηρεσίες που δεν έχουν ελεγχθεί. '
+                    f'Παρακαλώ ελέγξτε πρώτα όλες τις προϋπηρεσίες.'
+                )
+        
+        return status
 
 # Φόρμα για το μοντέλο PriorService
 class PriorServiceForm(forms.ModelForm):
@@ -112,8 +146,8 @@ class PriorServiceForm(forms.ModelForm):
             'service_provider': forms.Select(attrs={'class': 'form-control'}),
             'protocol_number': forms.TextInput(attrs={'class': 'form-control'}),
             'employment_relation': forms.Select(attrs={'class': 'form-control'}),
-            'start_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'end_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'start_date': GreekDateInput(),
+            'end_date': GreekDateInput(),
             'years': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
             'months': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'max': '11'}),
             'days': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'max': '30'}),
@@ -187,12 +221,12 @@ class PriorServiceSearchForm(forms.Form):
     start_date_from = forms.DateField(
         required=False,
         label='Ημερομηνία Έναρξης Από',
-        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
+        widget=GreekDateInput()
     )
     start_date_to = forms.DateField(
         required=False,
         label='Ημερομηνία Έναρξης Έως',
-        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
+        widget=GreekDateInput()
     )
     verified = forms.ChoiceField(
         required=False,

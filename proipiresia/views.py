@@ -143,6 +143,8 @@ class TeacherListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         queryset = super().get_queryset()
         search_term = self.request.GET.get('search', '')
+        sort_by = self.request.GET.get('sort', 'last_name')
+        order = self.request.GET.get('order', 'asc')
         
         if search_term:
             queryset = queryset.filter(
@@ -152,11 +154,22 @@ class TeacherListView(LoginRequiredMixin, ListView):
                 Q(teacherspecialty__specialty__code__icontains=search_term)
             ).distinct()
         
+        # Sorting
+        valid_sort_fields = ['last_name', 'first_name', 'father_name', 'phone', 'email']
+        if sort_by in valid_sort_fields:
+            if order == 'desc':
+                sort_by = f'-{sort_by}'
+            queryset = queryset.order_by(sort_by)
+        else:
+            queryset = queryset.order_by('last_name')
+        
         return queryset
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['search_term'] = self.request.GET.get('search', '')
+        context['current_sort'] = self.request.GET.get('sort', 'last_name')
+        context['current_order'] = self.request.GET.get('order', 'asc')
         return context
 
 # Λεπτομέρειες εκπαιδευτικού
@@ -169,37 +182,6 @@ class TeacherDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['specialties'] = self.object.teacherspecialty_set.all()
         context['applications'] = Application.objects.filter(teacher=self.object).order_by('-created_at')
-        
-        # Συγκεντρωτικά στοιχεία προϋπηρεσιών
-        prior_services = PriorService.objects.filter(
-            application__teacher=self.object,
-            application__status='COMPLETED',
-            is_active=True
-        )
-        
-        context['total_services'] = prior_services.count()
-        
-        totals = prior_services.aggregate(
-            total_years=Sum('years'),
-            total_months=Sum('months'),
-            total_days=Sum('days')
-        )
-        
-        years = totals['total_years'] or 0
-        months = totals['total_months'] or 0
-        days = totals['total_days'] or 0
-        
-        # Κανονικοποίηση
-        months += days // 30
-        days = days % 30
-        years += months // 12
-        months = months % 12
-        
-        context['total_experience'] = {
-            'years': years,
-            'months': months,
-            'days': days
-        }
         
         return context
 
@@ -341,11 +323,25 @@ class ApplicationListView(LoginRequiredMixin, ListView):
             if pyseep:
                 queryset = queryset.filter(pyseep=pyseep)
         
-        return queryset.order_by('-created_at')
+        # Sorting
+        sort_by = self.request.GET.get('sort', 'created_at')
+        order = self.request.GET.get('order', 'desc')
+        
+        valid_sort_fields = ['id', 'teacher__last_name', 'current_service__name', 'school_year__name', 'employee_type__name', 'status', 'pyseep__act_number', 'created_at']
+        if sort_by in valid_sort_fields:
+            if order == 'desc':
+                sort_by = f'-{sort_by}'
+            queryset = queryset.order_by(sort_by)
+        else:
+            queryset = queryset.order_by('-created_at')
+        
+        return queryset
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['search_form'] = ApplicationSearchForm(self.request.GET)
+        context['current_sort'] = self.request.GET.get('sort', 'created_at')
+        context['current_order'] = self.request.GET.get('order', 'desc')
         return context
 
 # Λεπτομέρειες αίτησης
@@ -381,6 +377,14 @@ class ApplicationDetailView(LoginRequiredMixin, DetailView):
             'days': days
         }
         
+        # Έλεγχος για μη ελεγμένες προϋπηρεσίες
+        unverified_services = self.object.priorservice_set.filter(
+            verified__isnull=True,
+            is_active=True
+        )
+        context['unverified_services_count'] = unverified_services.count()
+        context['has_unverified_services'] = unverified_services.exists()
+        
         # Φόρμα αλλαγής κατάστασης
         context['status_form'] = ApplicationStatusForm(instance=self.object)
         
@@ -394,6 +398,11 @@ class ApplicationCreateView(LoginRequiredMixin, CreateView):
     
     def get_success_url(self):
         return reverse('application-detail', kwargs={'pk': self.object.pk})
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['school_years'] = SchoolYear.objects.all().order_by('-name')
+        return context
     
     def form_valid(self, form):
         # Χρήση της βοηθητικής συνάρτησης για τη μετατροπή του request.user
@@ -428,6 +437,11 @@ class ApplicationUpdateView(LoginRequiredMixin, UpdateView):
     
     def get_success_url(self):
         return reverse('application-detail', kwargs={'pk': self.object.pk})
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['school_years'] = SchoolYear.objects.all().order_by('-name')
+        return context
     
     def form_valid(self, form):
         old_values = {
@@ -471,6 +485,44 @@ class ApplicationUpdateView(LoginRequiredMixin, UpdateView):
         
         messages.success(self.request, f'Η αίτηση για τον εκπαιδευτικό {self.object.teacher} ενημερώθηκε επιτυχώς.')
         return response
+
+# Διαγραφή αίτησης
+class ApplicationDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = Application
+    template_name = 'proipiresia/application_confirm_delete.html'
+    context_object_name = 'application'
+    success_url = reverse_lazy('application-list')
+    
+    def test_func(self):
+        """Επιτρέπει διαγραφή όλων των αιτήσεων εκτός από αυτές που είναι 'COMPLETED'"""
+        application = self.get_object()
+        return application.status != 'COMPLETED'
+    
+    def handle_no_permission(self):
+        """Εμφανίζει μήνυμα σφάλματος αν δεν επιτρέπεται η διαγραφή"""
+        messages.error(self.request, 'Οι ολοκληρωμένες αιτήσεις από ΠΥΣΕΕΠ δεν μπορούν να διαγραφούν.')
+        return redirect('application-detail', pk=self.get_object().pk)
+    
+    def delete(self, request, *args, **kwargs):
+        """Override για logging της διαγραφής"""
+        application = self.get_object()
+        
+        # Καταγραφή της διαγραφής
+        log_action(
+            request,
+            'DELETE',
+            'APPLICATION',
+            application.id,
+            old_values=json.dumps({
+                'teacher': application.teacher.id,
+                'current_service': application.current_service.id,
+                'school_year': application.school_year.id,
+                'status': application.status
+            })
+        )
+        
+        messages.success(request, f'Η αίτηση για τον εκπαιδευτικό {application.teacher} διαγράφηκε επιτυχώς.')
+        return super().delete(request, *args, **kwargs)
 
 # Αλλαγή κατάστασης αίτησης
 @login_required
@@ -1081,3 +1133,101 @@ def generate_docx_report(pyseep, report_data):
     os.unlink(temp_file.name)
     
     return response
+
+# AJAX view για δημιουργία νέου φορέα προϋπηρεσίας
+@login_required
+def create_service_provider_ajax(request):
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        
+        if not name:
+            return JsonResponse({'success': False, 'error': 'Το όνομα του φορέα είναι υποχρεωτικό.'})
+        
+        # Έλεγχος αν υπάρχει ήδη
+        if ServiceProvider.objects.filter(name=name).exists():
+            return JsonResponse({'success': False, 'error': 'Ο φορέας υπάρχει ήδη.'})
+        
+        try:
+            # Δημιουργία νέου φορέα
+            service_provider = ServiceProvider.objects.create(name=name)
+            
+            # Καταγραφή της ενέργειας
+            log_action(
+                request,
+                'CREATE',
+                'OTHER',
+                service_provider.id,
+                new_values=json.dumps({'name': name})
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'id': service_provider.id,
+                'name': service_provider.name
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': f'Σφάλμα κατά τη δημιουργία: {str(e)}'})
+    
+    return JsonResponse({'success': False, 'error': 'Μη έγκυρη μέθοδος.'})
+
+
+@login_required
+def create_pyseep_ajax(request):
+    if request.method == 'POST':
+        act_number = request.POST.get('act_number', '').strip()
+        date = request.POST.get('date', '').strip()
+        school_year_id = request.POST.get('school_year', '').strip()
+        
+        if not act_number:
+            return JsonResponse({'success': False, 'error': 'Ο αριθμός πράξης είναι υποχρεωτικός.'})
+        
+        if not date:
+            return JsonResponse({'success': False, 'error': 'Η ημερομηνία είναι υποχρεωτική.'})
+            
+        if not school_year_id:
+            return JsonResponse({'success': False, 'error': 'Το σχολικό έτος είναι υποχρεωτικό.'})
+        
+        try:
+            # Έλεγχος εγκυρότητας σχολικού έτους
+            school_year = SchoolYear.objects.get(id=school_year_id)
+        except SchoolYear.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Μη έγκυρο σχολικό έτος.'})
+        
+        # Έλεγχος αν υπάρχει ήδη
+        if PYSEEP.objects.filter(act_number=act_number, date=date).exists():
+            return JsonResponse({'success': False, 'error': 'Το ΠΥΣΕΕΠ με αυτόν τον αριθμό πράξης και ημερομηνία υπάρχει ήδη.'})
+        
+        try:
+            # Δημιουργία νέου ΠΥΣΕΕΠ
+            pyseep = PYSEEP.objects.create(
+                act_number=act_number,
+                date=date,
+                school_year=school_year
+            )
+            
+            # Καταγραφή της ενέργειας
+            log_action(
+                request,
+                'CREATE',
+                'OTHER',
+                pyseep.id,
+                new_values=json.dumps({
+                    'act_number': act_number,
+                    'date': date,
+                    'school_year': school_year.name
+                })
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'id': pyseep.id,
+                'act_number': pyseep.act_number,
+                'date': pyseep.date.strftime('%d/%m/%Y'),
+                'display_text': f"{pyseep.act_number} ({pyseep.date.strftime('%d/%m/%Y')})"
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': f'Σφάλμα κατά τη δημιουργία: {str(e)}'})
+    
+    return JsonResponse({'success': False, 'error': 'Μη έγκυρη μέθοδος.'})

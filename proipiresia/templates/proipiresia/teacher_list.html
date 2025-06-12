@@ -2,6 +2,22 @@
 
 {% block title %}Εκπαιδευτικοί - Σύστημα Αναγνώρισης Προϋπηρεσιών{% endblock %}
 
+{% block extra_css %}
+<style>
+.sortable-header {
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s ease;
+}
+.sortable-header:hover {
+    background-color: #f8f9fa !important;
+}
+.sortable-header i {
+    margin-left: 0.5rem;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -37,12 +53,77 @@
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>Επώνυμο</th>
-                            <th>Όνομα</th>
-                            <th>Πατρώνυμο</th>
+                            <th class="sortable-header">
+                                <a href="?sort=last_name&order={% if current_sort == 'last_name' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% if search_term %}&search={{ search_term }}{% endif %}" class="text-decoration-none text-dark">
+                                    Επώνυμο
+                                    {% if current_sort == 'last_name' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th class="sortable-header">
+                                <a href="?sort=first_name&order={% if current_sort == 'first_name' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% if search_term %}&search={{ search_term }}{% endif %}" class="text-decoration-none text-dark">
+                                    Όνομα
+                                    {% if current_sort == 'first_name' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th class="sortable-header">
+                                <a href="?sort=father_name&order={% if current_sort == 'father_name' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% if search_term %}&search={{ search_term }}{% endif %}" class="text-decoration-none text-dark">
+                                    Πατρώνυμο
+                                    {% if current_sort == 'father_name' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
                             <th>Ειδικότητες</th>
-                            <th>Τηλέφωνο</th>
-                            <th>Email</th>
+                            <th class="sortable-header">
+                                <a href="?sort=phone&order={% if current_sort == 'phone' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% if search_term %}&search={{ search_term }}{% endif %}" class="text-decoration-none text-dark">
+                                    Τηλέφωνο
+                                    {% if current_sort == 'phone' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th class="sortable-header">
+                                <a href="?sort=email&order={% if current_sort == 'email' and current_order == 'asc' %}desc{% else %}asc{% endif %}{% if search_term %}&search={{ search_term }}{% endif %}" class="text-decoration-none text-dark">
+                                    Email
+                                    {% if current_sort == 'email' %}
+                                        {% if current_order == 'asc' %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-sort text-muted"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
                             <th>Ενέργειες</th>
                         </tr>
                     </thead>
@@ -88,12 +169,12 @@
                 <ul class="pagination justify-content-center">
                     {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page=1{% if search_term %}&search={{ search_term }}{% endif %}" aria-label="First">
+                        <a class="page-link" href="?page=1{% if search_term %}&search={{ search_term }}{% endif %}&sort={{ current_sort }}&order={{ current_order }}" aria-label="First">
                             <span aria-hidden="true">&laquo;&laquo;</span>
                         </a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_term %}&search={{ search_term }}{% endif %}" aria-label="Previous">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_term %}&search={{ search_term }}{% endif %}&sort={{ current_sort }}&order={{ current_order }}" aria-label="Previous">
                             <span aria-hidden="true">&laquo;</span>
                         </a>
                     </li>
@@ -103,18 +184,18 @@
                         {% if page_obj.number == num %}
                         <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
                         {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                        <li class="page-item"><a class="page-link" href="?page={{ num }}{% if search_term %}&search={{ search_term }}{% endif %}">{{ num }}</a></li>
+                        <li class="page-item"><a class="page-link" href="?page={{ num }}{% if search_term %}&search={{ search_term }}{% endif %}&sort={{ current_sort }}&order={{ current_order }}">{{ num }}</a></li>
                         {% endif %}
                     {% endfor %}
                     
                     {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_term %}&search={{ search_term }}{% endif %}" aria-label="Next">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_term %}&search={{ search_term }}{% endif %}&sort={{ current_sort }}&order={{ current_order }}" aria-label="Next">
                             <span aria-hidden="true">&raquo;</span>
                         </a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_term %}&search={{ search_term }}{% endif %}" aria-label="Last">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_term %}&search={{ search_term }}{% endif %}&sort={{ current_sort }}&order={{ current_order }}" aria-label="Last">
                             <span aria-hidden="true">&raquo;&raquo;</span>
                         </a>
                     </li>
