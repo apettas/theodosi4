@@ -26,7 +26,7 @@ urlpatterns = [
     path("", include("proipiresia.urls")),
 ]
 
-# Προσθήκη των στατικών αρχείων και των αρχείων πολυμέσων στη λειτουργία ανάπτυξης
-if settings.DEBUG:
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Προσθήκη των στατικών αρχείων και των αρχείων πολυμέσων
+# Για development και production (σε production θα χρησιμοποιηθεί web server)
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
