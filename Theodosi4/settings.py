@@ -10,7 +10,12 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +25,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-6@xw71rq9xd7=t07+k*k0g7l34uhh7+3!vo)o@cn34rebakkr)"
+SECRET_KEY = os.getenv('SECRET_KEY', "django-insecure-6@xw71rq9xd7=t07+k*k0g7l34uhh7+3!vo)o@cn34rebakkr)")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 'yes')
 
-ALLOWED_HOSTS = ['172.21.111.200', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['172.21.111.200', 'localhost', '127.0.0.1', '0.0.0.0', '*']
 
 
 # Application definition
@@ -73,12 +78,36 @@ WSGI_APPLICATION = "Theodosi4.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+# Check if DATABASE_URL is provided (for Docker/production)
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+if DATABASE_URL:
+    # Parse PostgreSQL URL from environment
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL)
     }
-}
+else:
+    # Fallback to individual environment variables or SQLite for development
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME', 'theodosi4_db'),
+            'USER': os.getenv('DB_USER', 'theodosi4_user'),
+            'PASSWORD': os.getenv('DB_PASSWORD', 'theodosi4_password'),
+            'HOST': os.getenv('DB_HOST', 'db'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+        }
+    }
+    
+    # If no PostgreSQL settings, fallback to SQLite for local development
+    if not os.getenv('DB_NAME') and not os.getenv('DATABASE_URL'):
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.sqlite3",
+                "NAME": BASE_DIR / "db.sqlite3",
+            }
+        }
 
 
 # Password validation

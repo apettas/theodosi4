@@ -17,6 +17,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxml2-dev \
     libxslt1-dev \
     libfreetype6-dev \
+    libpq-dev \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Αντιγραφή του αρχείου requirements.txt στο container

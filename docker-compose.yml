@@ -3,32 +3,48 @@
 services:
   web:
     build: .
-    # Η εντολή εκτέλεσης (CMD) ορίζεται στο Dockerfile.
-    # Μπορεί να παρακαμφθεί εδώ αν χρειάζεται:
-    # command: python manage.py runserver 0.0.0.0:8000
+    command: >
+      sh -c "
+      echo 'Waiting for PostgreSQL to be ready...' &&
+      until pg_isready -h db -p 5432 -U theodosi4_user; do
+        echo 'PostgreSQL is unavailable - sleeping'
+        sleep 2
+      done &&
+      echo 'PostgreSQL is up - executing command' &&
+      python manage.py migrate &&
+      python manage.py collectstatic --noinput &&
+      gunicorn Theodosi4.wsgi:application --bind 0.0.0.0:8000 --workers 3 --access-logfile - --error-logfile -
+      "
     volumes:
       - .:/app  # Mount τον τρέχοντα φάκελο στο /app του container (για development)
+      - static_volume:/app/staticfiles
     ports:
       - "8000:8000"
     environment:
-      - SECRET_KEY=your_django_secret_key_here  # Άλλαξέ το!
-      - DEBUG=1                               # Όρισέ το σε 0 για production
-      - DATABASE_URL=postgres://db_user:db_password@db:5432/db_name # Παράδειγμα
+      - SECRET_KEY=theodosi4-production-secret-key-change-this-in-production
+      - DEBUG=0
+      - DATABASE_URL=postgres://theodosi4_user:theodosi4_password@db:5432/theodosi4_db
+      - DB_NAME=theodosi4_db
+      - DB_USER=theodosi4_user
+      - DB_PASSWORD=theodosi4_password
+      - DB_HOST=db
+      - DB_PORT=5432
     depends_on:
       - db
-    # restart: unless-stopped # Για production
+    restart: unless-stopped
 
   db:
-    image: postgres:13-alpine
+    image: postgres:15-alpine
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
-      - POSTGRES_USER=db_user
-      - POSTGRES_PASSWORD=db_password
-      - POSTGRES_DB=db_name
-    # ports: # Αφαίρεσε το σχόλιο αν θες να εκθέσεις την πόρτα της DB στον host (για debugging)
-      # - "5432:5432"
-    # restart: unless-stopped # Για production
+      - POSTGRES_USER=theodosi4_user
+      - POSTGRES_PASSWORD=theodosi4_password
+      - POSTGRES_DB=theodosi4_db
+    ports:
+      - "5432:5432"  # Εκθέτουμε την πόρτα για debugging αν χρειάζεται
+    restart: unless-stopped
 
 volumes:
-  postgres_data: # Διατηρεί τα δεδομένα της βάσης ακόμα και αν το container σταματήσει/διαγραφεί
+  postgres_data:
+  static_volume:
