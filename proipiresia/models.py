@@ -5,6 +5,32 @@ from django.core.validators import MinValueValidator, MaxValueValidator, FileExt
 import os
 import uuid
 import json
+import math # Import math module for rounding
+import datetime # Import datetime for timedelta
+
+# Helper function to calculate days between dates using the 360-day year (European method)
+def days360_european(start_date, end_date):
+    """
+    Calculates the number of days between two dates based on a 360-day year
+    (twelve 30-day months), using the European method.
+    """
+    start_day = start_date.day
+    start_month = start_date.month
+    start_year = start_date.year
+
+    end_day = end_date.day
+    end_month = end_date.month
+    end_year = end_date.year
+
+    # If the start day is 31, it becomes 30.
+    if start_day == 31:
+        start_day = 30
+
+    # If the end day is 31, it becomes 30.
+    if end_day == 31:
+        end_day = 30
+
+    return (end_year - start_year) * 360 + (end_month - start_month) * 30 + (end_day - start_day)
 
 # Μοντέλο για τους ρόλους χρηστών (RBAC)
 class Role(models.Model):
@@ -295,7 +321,7 @@ class Application(models.Model):
             )
         
         return new_application
-
+ 
 # Μοντέλο για τις προϋπηρεσίες
 class PriorService(models.Model):
     application = models.ForeignKey(Application, on_delete=models.CASCADE, verbose_name="Αίτηση")
@@ -304,9 +330,16 @@ class PriorService(models.Model):
     employment_relation = models.ForeignKey(EmploymentRelation, on_delete=models.CASCADE, verbose_name="Σχέση Εργασίας")
     start_date = models.DateField(verbose_name="Από")
     end_date = models.DateField(verbose_name="Έως")
-    years = models.PositiveSmallIntegerField(default=0, validators=[MinValueValidator(0)], verbose_name="Έτη")
-    months = models.PositiveSmallIntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(11)], verbose_name="Μήνες")
-    days = models.PositiveSmallIntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(30)], verbose_name="Ημέρες")
+    # Τα πεδία διάρκειας υπολογίζονται αυτόματα
+    years = models.PositiveSmallIntegerField(default=0, verbose_name="Έτη")
+    months = models.PositiveSmallIntegerField(default=0, verbose_name="Μήνες")
+    days = models.PositiveSmallIntegerField(default=0, verbose_name="Ημέρες")
+    # Νέο πεδίο για ώρες μειωμένου ωραρίου
+    reduced_hours = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(40)],
+        verbose_name="Ώρες Μειωμένου/Υποχρεωτικού",
+        default=40 # Προσθήκη default τιμής
+    )
     history = models.TextField(blank=True, null=True, verbose_name="Ιστορικό")
     verified = models.DateTimeField(blank=True, null=True, verbose_name="Ελέγχθηκε")
     verified_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_services', verbose_name="Ελέγχθηκε από")
@@ -323,7 +356,10 @@ class PriorService(models.Model):
         verbose_name = "Προϋπηρεσία"
         verbose_name_plural = "Προϋπηρεσίες"
         ordering = ['start_date']
-    
+        # Τα πεδία διάρκειας υπολογίζονται αυτόματα
+        # Δεν χρειάζεται να ορίσουμε 'fields' εδώ, καθώς δεν χρησιμοποιούμε ModelForm για αυτό το μοντέλο
+        # fields = '__all__' # Αφαίρεση αυτής της γραμμής
+ 
     def __str__(self):
         return f"{self.service_provider} ({self.start_date.strftime('%d/%m/%Y')} - {self.end_date.strftime('%d/%m/%Y')})"
     
@@ -345,19 +381,40 @@ class PriorService(models.Model):
             
             if overlapping.exists():
                 raise ValidationError('Υπάρχει αλληλεπικάλυψη με άλλη προϋπηρεσία στην ίδια αίτηση.')
-    
-    def save(self, *args, **kwargs):
-        # Υπολογισμός ετών, μηνών, ημερών αν δεν έχουν οριστεί
-        if self.start_date and self.end_date and (self.years == 0 and self.months == 0 and self.days == 0):
-            # Απλός υπολογισμός - θα αντικατασταθεί με τον ακριβή τύπο αργότερα
-            delta = self.end_date - self.start_date
-            total_days = delta.days + 1  # Συμπεριλαμβάνουμε και την τελευταία ημέρα
-            
-            self.years = total_days // 365
-            remaining_days = total_days % 365
-            self.months = remaining_days // 30
-            self.days = remaining_days % 30
         
+        # Έλεγχος για το νέο πεδίο reduced_hours
+        reduced_hours = self.reduced_hours # Αυτή είναι η διόρθωση
+        if reduced_hours is not None:
+            if not (1 <= reduced_hours <= 40):
+                 raise ValidationError({'reduced_hours': 'Οι ώρες μειωμένου/υποχρεωτικού πρέπει να είναι μεταξύ 1 και 40.'})
+ 
+    def save(self, *args, **kwargs):
+        # Υπολογισμός ετών, μηνών, ημερών με βάση τους τύπους του Excel
+        if self.start_date and self.end_date and self.reduced_hours is not None:
+            # Υπολογισμός συνολικών ημερών με DAYS360 (Ευρωπαϊκή μέθοδος)
+            # Προσθήκη 1 ημέρας στην end_date όπως στον τύπο του Excel
+            total_days_360 = days360_european(self.start_date, self.end_date + datetime.timedelta(days=1))
+ 
+            # Υπολογισμός συνολικών "κανονικοποιημένων" ημερών (D9 στο Excel)
+            # =ROUND((F6*D6/E6);0) όπου F6=total_days_360, D6=reduced_hours, E6=40
+            total_normalized_days = round((total_days_360 * self.reduced_hours / 40))
+ 
+            # Υπολογισμός ετών, μηνών, ημερών από τις total_normalized_days
+            # =INT(D9/360)
+            self.years = math.floor(total_normalized_days / 360)
+            
+            # =INT((D9-(C15*360))/30) όπου C15=years
+            remaining_days_after_years = total_normalized_days - (self.years * 360)
+            self.months = math.floor(remaining_days_after_years / 30)
+            
+            # =D9-(C15*360)-(D15*30) όπου C15=years, D15=months
+            self.days = total_normalized_days - (self.years * 360) - (self.months * 30)
+        else:
+            # Αν δεν υπάρχουν οι απαραίτητες τιμές, μηδενίζουμε τα πεδία διάρκειας
+            self.years = 0
+            self.months = 0
+            self.days = 0
+ 
         super().save(*args, **kwargs)
     
     def mark_as_verified(self, user):
@@ -379,9 +436,10 @@ class PriorService(models.Model):
             employment_relation=self.employment_relation,
             start_date=self.start_date,
             end_date=self.end_date,
-            years=self.years,
-            months=self.months,
-            days=self.days,
+            years=self.years, # Αντιγραφή του υπολογισμένου πεδίου
+            months=self.months, # Αντιγραφή του υπολογισμένου πεδίου
+            days=self.days, # Αντιγραφή του υπολογισμένου πεδίου
+            reduced_hours=self.reduced_hours, # Αντιγραφή του νέου πεδίου
             history=self.history,
             notes=self.notes,
             internal_notes=self.internal_notes,
@@ -419,14 +477,15 @@ class PriorService(models.Model):
                 'school_year': service.application.school_year,
                 'employment_relation': service.employment_relation,
                 'protocol_number': service.protocol_number,
-                'years': service.years,
-                'months': service.months,
-                'days': service.days
+                'years': service.years, # Συμπερίληψη του υπολογισμένου πεδίου
+                'months': service.months, # Συμπερίληψη του υπολογισμένου πεδίου
+                'days': service.days, # Συμπερίληψη του υπολογισμένου πεδίου
+                'reduced_hours': service.reduced_hours # Προσθήκη του νέου πεδίου στο ιστορικό
             }
             history_records.append(record)
         
         return history_records
-
+ 
 # Μοντέλο για την καταγραφή ενεργειών (Audit Trail)
 class AuditLog(models.Model):
     ACTION_CHOICES = [

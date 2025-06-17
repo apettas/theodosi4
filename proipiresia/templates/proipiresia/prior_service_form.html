@@ -140,40 +140,35 @@
                                 {% endif %}
                             </div>
                         </div>
-                        
+
+                        {# Νέο πεδίο για ώρες μειωμένου ωραρίου #}
                         <div class="row mb-3">
                             <div class="col-md-4">
-                                <label for="{{ form.years.id_for_label }}" class="form-label">{{ form.years.label }} <span class="text-danger">*</span></label>
-                                {{ form.years }}
-                                {% if form.years.errors %}
+                                <label for="{{ form.reduced_hours.id_for_label }}" class="form-label">{{ form.reduced_hours.label }} <span class="text-danger">*</span></label>
+                                {{ form.reduced_hours }}
+                                {% if form.reduced_hours.errors %}
                                 <div class="invalid-feedback d-block">
-                                    {% for error in form.years.errors %}
+                                    {% for error in form.reduced_hours.errors %}
                                     {{ error }}
                                     {% endfor %}
                                 </div>
                                 {% endif %}
                             </div>
+                        </div>
+
+                        {# Εμφάνιση υπολογιζόμενης διάρκειας #}
+                        <div class="row mb-3"> {# Αλλαγή από mb-4 σε mb-3 και αφαίρεση τίτλου #}
                             <div class="col-md-4">
-                                <label for="{{ form.months.id_for_label }}" class="form-label">{{ form.months.label }} <span class="text-danger">*</span></label>
-                                {{ form.months }}
-                                {% if form.months.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {% for error in form.months.errors %}
-                                    {{ error }}
-                                    {% endfor %}
-                                </div>
-                                {% endif %}
+                                <label class="form-label">Έτη:</label>
+                                <p class="form-control-static" id="years-display">{{ form.instance.years }}</p> {# Προσθήκη ID #}
                             </div>
                             <div class="col-md-4">
-                                <label for="{{ form.days.id_for_label }}" class="form-label">{{ form.days.label }} <span class="text-danger">*</span></label>
-                                {{ form.days }}
-                                {% if form.days.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {% for error in form.days.errors %}
-                                    {{ error }}
-                                    {% endfor %}
-                                </div>
-                                {% endif %}
+                                <label class="form-label">Μήνες:</label>
+                                <p class="form-control-static" id="months-display">{{ form.instance.months }}</p> {# Προσθήκη ID #}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Ημέρες:</label>
+                                <p class="form-control-static" id="days-display">{{ form.instance.days }}</p> {# Προσθήκη ID #}
                             </div>
                         </div>
                         
@@ -277,150 +272,209 @@
 
 {% block extra_js %}
 <script>
-    // Αυτόματος υπολογισμός διάρκειας προϋπηρεσίας
-    document.addEventListener('DOMContentLoaded', function() {
-        const startDateInput = document.getElementById('{{ form.start_date.id_for_label }}');
-        const endDateInput = document.getElementById('{{ form.end_date.id_for_label }}');
-        const yearsInput = document.getElementById('{{ form.years.id_for_label }}');
-        const monthsInput = document.getElementById('{{ form.months.id_for_label }}');
-        const daysInput = document.getElementById('{{ form.days.id_for_label }}');
-        
-        function calculateDuration() {
-            if (startDateInput.value && endDateInput.value) {
-                const startDate = new Date(startDateInput.value);
-                const endDate = new Date(endDateInput.value);
-                
-                // Έλεγχος εγκυρότητας ημερομηνιών
-                if (endDate < startDate) {
-                    return;
-                }
-                
-                // Προσθήκη μίας ημέρας για να συμπεριληφθεί και η τελευταία ημέρα
-                endDate.setDate(endDate.getDate() + 1);
-                
-                // Υπολογισμός διαφοράς σε ημέρες
-                const diffTime = Math.abs(endDate - startDate);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                
-                // Υπολογισμός ετών, μηνών, ημερών
-                const years = Math.floor(diffDays / 365);
-                const remainingDays = diffDays % 365;
-                const months = Math.floor(remainingDays / 30);
-                const days = remainingDays % 30;
-                
-                // Ενημέρωση πεδίων
-                yearsInput.value = years;
-                monthsInput.value = months;
-                daysInput.value = days;
+    // Ενεργοποίηση Datepicker στα πεδία ημερομηνίας και αρχικός υπολογισμός
+    $(function() {
+        // Τα πεδία ημερομηνίας έχουν την κλάση 'form-control' λόγω του GreekDateInput widget
+        $("#{{ form.start_date.id_for_label }}, #{{ form.end_date.id_for_label }}").datepicker({
+            dateFormat: 'dd/mm/yy', // Ελληνικό format
+            changeMonth: true,
+            changeYear: true,
+            yearRange: "-100:+0", // Επιλογή έτους από 100 χρόνια πριν μέχρι σήμερα
+            // Χρήση ελληνικού localization
+            onClose: function(dateText, inst) {
+                // Trigger change event για τον αυτόματο υπολογισμό διάρκειας
+                calculateDuration();
             }
-        }
-        
-        // Προσθήκη event listeners
-        if (startDateInput && endDateInput) {
-            startDateInput.addEventListener('change', calculateDuration);
-            endDateInput.addEventListener('change', calculateDuration);
-        }
-        
-        // Λειτουργικότητα για προσθήκη νέου φορέα προϋπηρεσίας
-        const addServiceProviderBtn = document.getElementById('addServiceProviderBtn');
-        const addServiceProviderModal = new bootstrap.Modal(document.getElementById('addServiceProviderModal'));
-        const saveServiceProviderBtn = document.getElementById('saveServiceProviderBtn');
-        const serviceProviderSelect = document.getElementById('{{ form.service_provider.id_for_label }}');
-        const serviceProviderError = document.getElementById('serviceProviderError');
-        const newServiceProviderName = document.getElementById('newServiceProviderName');
-        
-        // Άνοιγμα modal
-        addServiceProviderBtn.addEventListener('click', function() {
-            // Καθαρισμός φόρμας
-            newServiceProviderName.value = '';
-            serviceProviderError.classList.add('d-none');
-            addServiceProviderModal.show();
         });
-        
-        // Αποθήκευση νέου φορέα
-        saveServiceProviderBtn.addEventListener('click', function() {
-            const name = newServiceProviderName.value.trim();
+
+        // Ρύθμιση ελληνικού localization για το datepicker
+        $.datepicker.setDefaults($.datepicker.regional['el']);
+
+        // Κλήση του υπολογισμού όταν το DOM είναι έτοιμο και για αρχική φόρτωση
+        calculateDuration();
+    });
+
+    // Ορισμός μεταβλητών και συναρτήσεων μια φορά, εκτός του $(function)
+    // Αυτό εξασφαλίζει ότι δεν θα υπάρχουν διπλοί ορισμοί.
+    const startDateInput = document.getElementById('{{ form.start_date.id_for_label }}');
+    const endDateInput = document.getElementById('{{ form.end_date.id_for_label }}');
+    const reducedHoursInput = document.getElementById('{{ form.reduced_hours.id_for_label }}');
+    const yearsDisplay = document.getElementById('years-display');
+    const monthsDisplay = document.getElementById('months-display');
+    const daysDisplay = document.getElementById('days-display');
+
+    // Helper function for DAYS360 (European method)
+    function days360European(startDate, endDate) {
+        let startDay = startDate.getDate();
+        let startMonth = startDate.getMonth() + 1;
+        let startYear = startDate.getFullYear();
+
+        let endDay = endDate.getDate();
+        let endMonth = endDate.getMonth() + 1;
+        let endYear = endDate.getFullYear();
+
+        if (startDay == 31) startDay = 30;
+        if (endDay == 31) endDay = 30;
+
+        return (endYear - startYear) * 360 + (endMonth - startMonth) * 30 + (endDay - startDay);
+    }
+    
+    // Αυτόματος υπολογισμός διάρκειας προϋπηρεσίας
+    function calculateDuration() {
+        if (startDateInput.value && endDateInput.value && reducedHoursInput.value) {
+            // Μετατροπή ελληνικού format (dd/mm/yyyy) σε Date object
+            const partsStart = startDateInput.value.split('/');
+            const startDate = new Date(partsStart[2], partsStart[1] - 1, partsStart[0]); // Month is 0-indexed
+
+            const partsEnd = endDateInput.value.split('/');
+            const endDate = new Date(partsEnd[2], partsEnd[1] - 1, partsEnd[0]);
             
-            if (!name) {
-                showError('Το όνομα του φορέα είναι υποχρεωτικό.');
+            const reducedHours = parseInt(reducedHoursInput.value);
+
+            // Έλεγχος εγκυρότητας ημερομηνιών και ωρών
+            if (endDate < startDate || isNaN(reducedHours) || reducedHours < 0 || reducedHours > 40) { // reducedHours >= 0 for initial load if not set
+                yearsDisplay.textContent = 0;
+                monthsDisplay.textContent = 0;
+                daysDisplay.textContent = 0;
                 return;
             }
             
-            // Απενεργοποίηση κουμπιού κατά τη διάρκεια της αίτησης
-            saveServiceProviderBtn.disabled = true;
-            saveServiceProviderBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Αποθήκευση...';
+            // Προσθήκη μίας ημέρας για να συμπεριληφθεί και η τελευταία ημέρα
+            const endDatePlusOne = new Date(endDate);
+            endDatePlusOne.setDate(endDatePlusOne.getDate() + 1);
+
+            // Υπολογισμός συνολικών ημερών με DAYS360 (Ευρωπαϊκή μέθοδος)
+            const totalDays360 = days360European(startDate, endDatePlusOne);
+
+            // Υπολογισμός συνολικών "κανονικοποιημένων" ημερών
+            const totalNormalizedDays = Math.round((totalDays360 * reducedHours / 40));
+
+            // Υπολογισμός ετών, μηνών, ημερών
+            const years = Math.floor(totalNormalizedDays / 360);
+            const remainingDaysAfterYears = totalNormalizedDays - (years * 360);
+            const months = Math.floor(remainingDaysAfterYears / 30);
+            const days = remainingDaysAfterYears - (months * 30);
             
-            // AJAX αίτηση
-            fetch('{% url "create-service-provider-ajax" %}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                },
-                body: 'name=' + encodeURIComponent(name)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Προσθήκη νέας επιλογής στο select
-                    const option = new Option(data.name, data.id, true, true);
-                    serviceProviderSelect.add(option);
-                    
-                    // Κλείσιμο modal
-                    addServiceProviderModal.hide();
-                    
-                    // Εμφάνιση μηνύματος επιτυχίας
-                    showSuccessMessage('Ο φορέας προϋπηρεσίας δημιουργήθηκε επιτυχώς!');
-                } else {
-                    showError(data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showError('Σφάλμα κατά τη δημιουργία του φορέα.');
-            })
-            .finally(() => {
-                // Επαναφορά κουμπιού
-                saveServiceProviderBtn.disabled = false;
-                saveServiceProviderBtn.innerHTML = '<i class="fas fa-save me-2"></i>Αποθήκευση';
-            });
-        });
+            // Ενημέρωση στοιχείων εμφάνισης
+            yearsDisplay.textContent = years;
+            monthsDisplay.textContent = months;
+            daysDisplay.textContent = days;
+
+        } else {
+            // Καθαρισμός πεδίων διάρκειας αν οι τιμές είναι κενές
+            yearsDisplay.textContent = 0;
+            monthsDisplay.textContent = 0;
+            daysDisplay.textContent = 0;
+        }
+    }
+    
+    // Προσθήκη event listeners στα πεδία που επηρεάζουν τον υπολογισμό
+    if (startDateInput && endDateInput && reducedHoursInput) {
+        startDateInput.addEventListener('change', calculateDuration);
+        endDateInput.addEventListener('change', calculateDuration);
+        reducedHoursInput.addEventListener('input', calculateDuration); // Use 'input' for immediate updates
+    }
+    
+    // Λειτουργικότητα για προσθήκη νέου φορέα προϋπηρεσίας (αυτός ο κώδικας δεν χρειάζεται να είναι σε DOMContentLoaded)
+    const addServiceProviderBtn = document.getElementById('addServiceProviderBtn');
+    const addServiceProviderModal = new bootstrap.Modal(document.getElementById('addServiceProviderModal'));
+    const saveServiceProviderBtn = document.getElementById('saveServiceProviderBtn');
+    const serviceProviderSelect = document.getElementById('{{ form.service_provider.id_for_label }}');
+    const serviceProviderError = document.getElementById('serviceProviderError');
+    const newServiceProviderName = document.getElementById('newServiceProviderName');
+    
+    // Άνοιγμα modal
+    addServiceProviderBtn.addEventListener('click', function() {
+        // Καθαρισμός φόρμας
+        newServiceProviderName.value = '';
+        serviceProviderError.classList.add('d-none');
+        addServiceProviderModal.show();
+    });
+    
+    // Αποθήκευση νέου φορέα
+    saveServiceProviderBtn.addEventListener('click', function() {
+        const name = newServiceProviderName.value.trim();
         
-        // Συνάρτηση για εμφάνιση σφάλματος
-        function showError(message) {
-            serviceProviderError.textContent = message;
-            serviceProviderError.classList.remove('d-none');
+        if (!name) {
+            showError('Το όνομα του φορέα είναι υποχρεωτικό.');
+            return;
         }
         
-        // Συνάρτηση για εμφάνιση μηνύματος επιτυχίας
-        function showSuccessMessage(message) {
-            // Δημιουργία προσωρινού alert
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
-            alertDiv.style.top = '20px';
-            alertDiv.style.right = '20px';
-            alertDiv.style.zIndex = '9999';
-            alertDiv.innerHTML = `
-                <i class="fas fa-check-circle me-2"></i>${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            document.body.appendChild(alertDiv);
-            
-            // Αυτόματη αφαίρεση μετά από 3 δευτερόλεπτα
-            setTimeout(() => {
-                if (alertDiv.parentNode) {
-                    alertDiv.parentNode.removeChild(alertDiv);
-                }
-            }, 3000);
-        }
+        // Απενεργοποίηση κουμπιού κατά τη διάρκεια της αίτησης
+        saveServiceProviderBtn.disabled = true;
+        saveServiceProviderBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Αποθήκευση...';
         
-        // Enter key στο input του modal
-        newServiceProviderName.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                saveServiceProviderBtn.click();
+        // AJAX αίτηση
+        fetch('{% url "create-service-provider-ajax" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: 'name=' + encodeURIComponent(name)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Προσθήκη νέας επιλογής στο select
+                const option = new Option(data.name, data.id, true, true);
+                serviceProviderSelect.add(option);
+                
+                // Κλείσιμο modal
+                addServiceProviderModal.hide();
+                
+                // Εμφάνιση μηνύματος επιτυχίας
+                showSuccessMessage('Ο φορέας προϋπηρεσίας δημιουργήθηκε επιτυχώς!');
+            } else {
+                showError(data.error);
             }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showError('Σφάλμα κατά τη δημιουργία του φορέα.');
+        })
+        .finally(() => {
+            // Επαναφορά κουμπιού
+            saveServiceProviderBtn.disabled = false;
+            saveServiceProviderBtn.innerHTML = '<i class="fas fa-save me-2"></i>Αποθήκευση';
         });
     });
+    
+    // Συνάρτηση για εμφάνιση σφάλματος
+    function showError(message) {
+        serviceProviderError.textContent = message;
+        serviceProviderError.classList.remove('d-none');
+    }
+    
+    // Συνάρτηση για εμφάνιση μηνύματος επιτυχίας
+    function showSuccessMessage(message) {
+        // Δημιουργία προσωρινού alert
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+        alertDiv.style.top = '20px';
+        alertDiv.style.right = '20px';
+        alertDiv.style.zIndex = '9999';
+        alertDiv.innerHTML = `
+            <i class="fas fa-check-circle me-2"></i>${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alertDiv);
+        
+        // Αυτόματη αφαίρεση μετά από 3 δευτερόλεπτα
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.parentNode.removeChild(alertDiv);
+            }
+        }, 3000);
+    }
+    
+    // Enter key στο input του modal
+    newServiceProviderName.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            saveServiceProviderBtn.click();
+        }
+    });
+
 </script>
 {% endblock %}

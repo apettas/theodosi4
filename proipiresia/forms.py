@@ -146,7 +146,8 @@ class PriorServiceForm(forms.ModelForm):
         model = PriorService
         fields = (
             'service_provider', 'protocol_number', 'employment_relation',
-            'start_date', 'end_date', 'years', 'months', 'days',
+            'start_date', 'end_date',
+            'reduced_hours', # Προσθήκη του νέου πεδίου
             'notes', 'internal_notes'
         )
         widgets = {
@@ -155,9 +156,7 @@ class PriorServiceForm(forms.ModelForm):
             'employment_relation': forms.Select(attrs={'class': 'form-control'}),
             'start_date': GreekDateInput(),
             'end_date': GreekDateInput(),
-            'years': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
-            'months': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'max': '11'}),
-            'days': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'max': '30'}),
+            'reduced_hours': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '40'}), # Widget για το νέο πεδίο
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': '3'}),
             'internal_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': '3'}),
         }
@@ -166,10 +165,16 @@ class PriorServiceForm(forms.ModelForm):
         cleaned_data = super().clean()
         start_date = cleaned_data.get('start_date')
         end_date = cleaned_data.get('end_date')
-        
+        reduced_hours = cleaned_data.get('reduced_hours') # Λήψη του νέου πεδίου
+
         if start_date and end_date and end_date < start_date:
             raise ValidationError('Η ημερομηνία λήξης πρέπει να είναι μεταγενέστερη της ημερομηνίας έναρξης.')
         
+        # Έλεγχος για το νέο πεδίο reduced_hours
+        if reduced_hours is not None: # Έλεγχος αν το πεδίο έχει τιμή (είναι υποχρεωτικό)
+            if not (1 <= reduced_hours <= 40):
+                 raise ValidationError({'reduced_hours': 'Οι ώρες μειωμένου/υποχρεωτικού πρέπει να είναι μεταξύ 1 και 40.'})
+
         return cleaned_data
 
 # Φόρμα για την επαλήθευση προϋπηρεσίας

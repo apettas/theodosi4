@@ -203,10 +203,10 @@ class ApplicationAdmin(admin.ModelAdmin):
 # Admin για το μοντέλο PriorService
 @admin.register(PriorService)
 class PriorServiceAdmin(admin.ModelAdmin):
-    list_display = ('service_provider', 'application', 'start_date', 'end_date', 'years', 'months', 'days', 'is_verified')
+    list_display = ('service_provider', 'application', 'start_date', 'end_date', 'years', 'months', 'days', 'reduced_hours', 'is_verified') # Προσθήκη reduced_hours
     list_filter = ('application__status', 'service_provider', 'employment_relation', 'is_active')
     search_fields = ('application__teacher__last_name', 'application__teacher__first_name', 'service_provider__name')
-    readonly_fields = ('created_at', 'updated_at', 'created_by', 'updated_by', 'verified', 'verified_by')
+    readonly_fields = ('created_at', 'updated_at', 'created_by', 'updated_by', 'verified', 'verified_by', 'years', 'months', 'days') # Προσθήκη years, months, days
     date_hierarchy = 'start_date'
     
     fieldsets = (
@@ -214,7 +214,7 @@ class PriorServiceAdmin(admin.ModelAdmin):
             'fields': ('application', 'service_provider', 'protocol_number', 'employment_relation')
         }),
         ('Χρονικό Διάστημα', {
-            'fields': ('start_date', 'end_date', 'years', 'months', 'days')
+            'fields': ('start_date', 'end_date', 'reduced_hours', 'years', 'months', 'days') # Προσθήκη reduced_hours, years, months, days
         }),
         ('Σημειώσεις', {
             'fields': ('history', 'notes', 'internal_notes')
