@@ -147,7 +147,11 @@ class PriorServiceForm(forms.ModelForm):
         fields = (
             'service_provider', 'protocol_number', 'employment_relation',
             'start_date', 'end_date',
-            'reduced_hours', # Προσθήκη του νέου πεδίου
+            'reduced_hours',
+            'manual_override',
+            'years', # Προσθήκη πίσω στη φόρμα
+            'months', # Προσθήκη πίσω στη φόρμα
+            'days',   # Προσθήγη πίσω στη φόρμα
             'notes', 'internal_notes'
         )
         widgets = {
@@ -156,24 +160,53 @@ class PriorServiceForm(forms.ModelForm):
             'employment_relation': forms.Select(attrs={'class': 'form-control'}),
             'start_date': GreekDateInput(),
             'end_date': GreekDateInput(),
-            'reduced_hours': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '40'}), # Widget για το νέο πεδίο
+            'reduced_hours': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '40'}),
+            'manual_override': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'years': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+            'months': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'max': '11'}),
+            'days': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'max': '30'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': '3'}),
             'internal_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': '3'}),
         }
     
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Κάνουμε τα πεδία years, months, days μη υποχρεωτικά στη φόρμα
+        # καθώς η τιμή τους θα προέλθει είτε από υπολογισμό είτε από χειροκίνητη εισαγωγή
+        self.fields['years'].required = False
+        self.fields['months'].required = False
+        self.fields['days'].required = False
+
     def clean(self):
         cleaned_data = super().clean()
         start_date = cleaned_data.get('start_date')
         end_date = cleaned_data.get('end_date')
-        reduced_hours = cleaned_data.get('reduced_hours') # Λήψη του νέου πεδίου
+        manual_override = cleaned_data.get('manual_override')
 
         if start_date and end_date and end_date < start_date:
             raise ValidationError('Η ημερομηνία λήξης πρέπει να είναι μεταγενέστερη της ημερομηνίας έναρξης.')
         
-        # Έλεγχος για το νέο πεδίο reduced_hours
-        if reduced_hours is not None: # Έλεγχος αν το πεδίο έχει τιμή (είναι υποχρεωτικό)
-            if not (1 <= reduced_hours <= 40):
-                 raise ValidationError({'reduced_hours': 'Οι ώρες μειωμένου/υποχρεωτικού πρέπει να είναι μεταξύ 1 και 40.'})
+        # Εάν manual_override είναι True, τα πεδία years, months, days πρέπει να έχουν τιμές.
+        if manual_override:
+            # Είναι απαραίτητο να υπάρχουν τιμές στα πεδία όταν το manual_override είναι True
+            years = cleaned_data.get('years')
+            months = cleaned_data.get('months')
+            days = cleaned_data.get('days')
+
+            if years is None: # Έλεγχος για None, όχι για κενό string
+                self.add_error('years', "Πρέπει να συμπληρώσετε τα έτη όταν η χειροκίνητη παράκαμψη είναι ενεργή.")
+            if months is None:
+                self.add_error('months', "Πρέπει να συμπληρώσετε τους μήνες όταν η χειροκίνητη παράκαμψη είναι ενεργή.")
+            if days is None:
+                self.add_error('days', "Πρέπει να συμπληρώσετε τις ημέρες όταν η χειροκίνητη παράκαμψη είναι ενεργή.")
+            
+            # Επίσης, βεβαιωνόμαστε ότι οι τιμές είναι εντός των ορίων
+            if years is not None and (years < 0): # Years can be 0 manually in some cases
+                self.add_error('years', "Τα έτη πρέπει να είναι >= 0.")
+            if months is not None and not (0 <= months <= 11):
+                 self.add_error('months', "Οι μήνες πρέπει να είναι μεταξύ 0 και 11.")
+            if days is not None and not (0 <= days <= 30):
+                 self.add_error('days', "Οι ημέρες πρέπει να είναι μεταξύ 0 και 30.")
 
         return cleaned_data
 

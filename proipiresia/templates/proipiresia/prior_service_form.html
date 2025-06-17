@@ -156,19 +156,28 @@
                             </div>
                         </div>
 
-                        {# Εμφάνιση υπολογιζόμενης διάρκειας #}
-                        <div class="row mb-3"> {# Αλλαγή από mb-4 σε mb-3 και αφαίρεση τίτλου #}
-                            <div class="col-md-4">
+                        {# Εμφάνιση υπολογιζόμενης διάρκειας ή επεξεργάσιμα πεδία #}
+                        <div class="row mb-3 align-items-end"> 
+                            <div class="col-md-3">
                                 <label class="form-label">Έτη:</label>
-                                <p class="form-control-static" id="years-display">{{ form.instance.years }}</p> {# Προσθήκη ID #}
+                                <input type="number" class="form-control duration-input" id="years-input" name="{{ form.years.name }}" value="{{ form.years.value|default:0 }}" min="0">
+                                <p class="form-control-static" id="years-display"></p>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label">Μήνες:</label>
-                                <p class="form-control-static" id="months-display">{{ form.instance.months }}</p> {# Προσθήκη ID #}
+                                <input type="number" class="form-control duration-input" id="months-input" name="{{ form.months.name }}" value="{{ form.months.value|default:0 }}" min="0" max="11">
+                                <p class="form-control-static" id="months-display"></p>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label">Ημέρες:</label>
-                                <p class="form-control-static" id="days-display">{{ form.instance.days }}</p> {# Προσθήκη ID #}
+                                <input type="number" class="form-control duration-input" id="days-input" name="{{ form.days.name }}" value="{{ form.days.value|default:0 }}" min="0" max="30">
+                                <p class="form-control-static" id="days-display"></p>
+                            </div>
+                            <div class="col-md-3 text-end pt-4">
+                                <div class="form-check form-switch d-inline-block">
+                                    {{ form.manual_override }}
+                                    <label class="form-check-label" for="{{ form.manual_override.id_for_label }}">{{ form.manual_override.label }}</label>
+                                </div>
                             </div>
                         </div>
                         
@@ -283,22 +292,24 @@
             // Χρήση ελληνικού localization
             onClose: function(dateText, inst) {
                 // Trigger change event για τον αυτόματο υπολογισμό διάρκειας
-                calculateDuration();
+                calculateDurationAndDisplay(); // Changed to new function name
             }
         });
 
         // Ρύθμιση ελληνικού localization για το datepicker
         $.datepicker.setDefaults($.datepicker.regional['el']);
-
-        // Κλήση του υπολογισμού όταν το DOM είναι έτοιμο και για αρχική φόρτωση
-        calculateDuration();
     });
 
-    // Ορισμός μεταβλητών και συναρτήσεων μια φορά, εκτός του $(function)
-    // Αυτό εξασφαλίζει ότι δεν θα υπάρχουν διπλοί ορισμοί.
+    // Ορισμός μεταβλητών και συναρτήσεων μια φορά
     const startDateInput = document.getElementById('{{ form.start_date.id_for_label }}');
     const endDateInput = document.getElementById('{{ form.end_date.id_for_label }}');
     const reducedHoursInput = document.getElementById('{{ form.reduced_hours.id_for_label }}');
+    const manualOverrideCheckbox = document.getElementById('{{ form.manual_override.id_for_label }}');
+
+    const yearsInput = document.getElementById('years-input');
+    const monthsInput = document.getElementById('months-input');
+    const daysInput = document.getElementById('days-input');
+    
     const yearsDisplay = document.getElementById('years-display');
     const monthsDisplay = document.getElementById('months-display');
     const daysDisplay = document.getElementById('days-display');
@@ -319,8 +330,16 @@
         return (endYear - startYear) * 360 + (endMonth - startMonth) * 30 + (endDay - startDay);
     }
     
-    // Αυτόματος υπολογισμός διάρκειας προϋπηρεσίας
-    function calculateDuration() {
+    // Αυτόματος υπολογισμός διάρκειας προϋπηρεσίας και ενημέρωση οθόνης
+    function calculateDurationAndDisplay() {
+        if (manualOverrideCheckbox.checked) {
+            // Αν είναι manual override, δεν υπολογίζουμε, απλά εμφανίζουμε τις τιμές των input fields
+            yearsDisplay.textContent = yearsInput.value;
+            monthsDisplay.textContent = monthsInput.value;
+            daysDisplay.textContent = daysInput.value;
+            return;
+        }
+
         if (startDateInput.value && endDateInput.value && reducedHoursInput.value) {
             // Μετατροπή ελληνικού format (dd/mm/yyyy) σε Date object
             const partsStart = startDateInput.value.split('/');
@@ -332,7 +351,7 @@
             const reducedHours = parseInt(reducedHoursInput.value);
 
             // Έλεγχος εγκυρότητας ημερομηνιών και ωρών
-            if (endDate < startDate || isNaN(reducedHours) || reducedHours < 0 || reducedHours > 40) { // reducedHours >= 0 for initial load if not set
+            if (endDate < startDate || isNaN(reducedHours) || reducedHours < 0 || reducedHours > 40) {
                 yearsDisplay.textContent = 0;
                 monthsDisplay.textContent = 0;
                 daysDisplay.textContent = 0;
@@ -360,22 +379,72 @@
             monthsDisplay.textContent = months;
             daysDisplay.textContent = days;
 
+            // Ενημέρωση των κρυφών input fields για υποβολή
+            yearsInput.value = years;
+            monthsInput.value = months;
+            daysInput.value = days;
+
         } else {
-            // Καθαρισμός πεδίων διάρκειας αν οι τιμές είναι κενές
             yearsDisplay.textContent = 0;
             monthsDisplay.textContent = 0;
             daysDisplay.textContent = 0;
+            
+            yearsInput.value = 0;
+            monthsInput.value = 0;
+            daysInput.value = 0;
         }
     }
     
-    // Προσθήκη event listeners στα πεδία που επηρεάζουν τον υπολογισμό
+    // Συνάρτηση για εναλλαγή μεταξύ επεξεργάσιμων και read-only πεδίων
+    function toggleDurationFields() {
+        const isManual = manualOverrideCheckbox.checked;
+
+        // Κάνουμε ορατά/αόρατα τα input fields και τα p tags
+        yearsInput.classList.toggle('d-none', !isManual);
+        monthsInput.classList.toggle('d-none', !isManual);
+        daysInput.classList.toggle('d-none', !isManual);
+
+        yearsDisplay.classList.toggle('d-none', isManual);
+        monthsDisplay.classList.toggle('d-none', isManual);
+        daysDisplay.classList.toggle('d-none', isManual);
+
+        // Ενεργοποιούμε/απενεργοποιούμε τα input fields
+        yearsInput.disabled = !isManual;
+        monthsInput.disabled = !isManual;
+        daysInput.disabled = !isManual;
+
+        if (isManual) {
+            // 'Αν είναι χειροκίνητη παράκαμψη, γεμίζουμε τους inputs με τις τρέχουσες υπολογισμένες τιμές (πριν απενεργοποιήσουμε τον υπολογισμό)
+            // Αυτό είναι σημαντικό για να μην ξεκινήσει ο χρήστης από το 0 αν θέλει να κάνει μικροδιορθώσεις
+            yearsInput.value = yearsDisplay.textContent;
+            monthsInput.value = monthsDisplay.textContent;
+            daysInput.value = daysDisplay.textContent;
+        } else {
+            // Όταν απενεργοποιείται η χειροκίνητη παράκαμψη, επαναϋπολογίζουμε
+            calculateDurationAndDisplay();
+        }
+    }
+
+    // Προσθήκη event listeners στα πεδία που επηρεάζουν τον αυτόματο υπολογισμό
     if (startDateInput && endDateInput && reducedHoursInput) {
-        startDateInput.addEventListener('change', calculateDuration);
-        endDateInput.addEventListener('change', calculateDuration);
-        reducedHoursInput.addEventListener('input', calculateDuration); // Use 'input' for immediate updates
+        startDateInput.addEventListener('change', calculateDurationAndDisplay);
+        endDateInput.addEventListener('change', calculateDurationAndDisplay);
+        reducedHoursInput.addEventListener('input', calculateDurationAndDisplay);
+    }
+
+    // Event listener για το manual override checkbox
+    if (manualOverrideCheckbox) {
+        manualOverrideCheckbox.addEventListener('change', toggleDurationFields);
+    }
+
+    // Event listeners για τα input fields όταν είναι σε manual override mode
+    if (yearsInput && monthsInput && daysInput) {
+        yearsInput.addEventListener('input', calculateDurationAndDisplay);
+        monthsInput.addEventListener('input', calculateDurationAndDisplay);
+        daysInput.addEventListener('input', calculateDurationAndDisplay);
     }
     
-    // Λειτουργικότητα για προσθήκη νέου φορέα προϋπηρεσίας (αυτός ο κώδικας δεν χρειάζεται να είναι σε DOMContentLoaded)
+    // Λειτουργικότητα για προσθήκη νέου φορέα προϋπηρεσίας
     const addServiceProviderBtn = document.getElementById('addServiceProviderBtn');
     const addServiceProviderModal = new bootstrap.Modal(document.getElementById('addServiceProviderModal'));
     const saveServiceProviderBtn = document.getElementById('saveServiceProviderBtn');
@@ -476,5 +545,8 @@
         }
     });
 
+    // Initial setup on page load
+    calculateDurationAndDisplay(); // Call initially to set up calculated values
+    toggleDurationFields(); // Call initially to set correct field states based on manual_override
 </script>
 {% endblock %}

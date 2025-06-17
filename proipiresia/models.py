@@ -270,15 +270,48 @@ class Application(models.Model):
     def __str__(self):
         return f"Αίτηση {self.id} - {self.teacher} ({self.school_year})"
     
-    def total_years(self):
-        return sum(service.years for service in self.priorservice_set.all())
-    
-    def total_months(self):
-        return sum(service.months for service in self.priorservice_set.all())
-    
-    def total_days(self):
-        return sum(service.days for service in self.priorservice_set.all())
-    
+    @property
+    def total_calculated_years(self):
+        # I11
+        total_years_raw = self.priorservice_set.aggregate(Sum('years'))['years__sum'] or 0
+        # J11
+        total_months_raw = self.priorservice_set.aggregate(Sum('months'))['months__sum'] or 0
+        # K11
+        total_days_raw = self.priorservice_set.aggregate(Sum('days'))['days__sum'] or 0
+
+        # Excel equivalent: =I11+QUOTIENT((J11+QUOTIENT(K11;30));12)
+        # K11/30 = QUOTIENT(K11;30)
+        days_to_months = math.floor(total_days_raw / 30)
+        
+        # J11 + QUOTIENT(K11;30) = total_months_raw + days_to_months
+        months_total_temp = total_months_raw + days_to_months
+        
+        # QUOTIENT((J11+QUOTIENT(K11;30));12) = months_total_temp / 12
+        months_to_years = math.floor(months_total_temp / 12)
+        
+        return total_years_raw + months_to_years
+
+    @property
+    def total_calculated_months(self):
+        # J11
+        total_months_raw = self.priorservice_set.aggregate(Sum('months'))['months__sum'] or 0
+        # K11
+        total_days_raw = self.priorservice_set.aggregate(Sum('days'))['days__sum'] or 0
+
+        # Excel equivalent: =MOD((J11+QUOTIENT(K11;30));12)
+        days_to_months = math.floor(total_days_raw / 30)
+        months_total_temp = total_months_raw + days_to_months
+        
+        return months_total_temp % 12
+
+    @property
+    def total_calculated_days(self):
+        # K11
+        total_days_raw = self.priorservice_set.aggregate(Sum('days'))['days__sum'] or 0
+        
+        # Excel equivalent: =MOD(K11;30)
+        return total_days_raw % 30 # This correctly applies MOD 30 to raw days, then it's calculated from the sum values
+
     def create_new_version(self):
         """Δημιουργεί νέα έκδοση της αίτησης"""
         self.is_active = False
@@ -313,6 +346,7 @@ class Application(models.Model):
                 years=service.years,
                 months=service.months,
                 days=service.days,
+                reduced_hours=service.reduced_hours,
                 history=service.history,
                 verified=None,
                 notes=service.notes,
@@ -341,6 +375,8 @@ class PriorService(models.Model):
         default=40 # Προσθήκη default τιμής
     )
     history = models.TextField(blank=True, null=True, verbose_name="Ιστορικό")
+    # Νέο πεδίο για χειροκίνητη παράκαμψη του υπολογισμού
+    manual_override = models.BooleanField(default=False, verbose_name="Χειροκίνητη Παράκαμψη")
     verified = models.DateTimeField(blank=True, null=True, verbose_name="Ελέγχθηκε")
     verified_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_services', verbose_name="Ελέγχθηκε από")
     notes = models.TextField(blank=True, null=True, verbose_name="Παρατηρήσεις")
@@ -383,14 +419,14 @@ class PriorService(models.Model):
                 raise ValidationError('Υπάρχει αλληλεπικάλυψη με άλλη προϋπηρεσία στην ίδια αίτηση.')
         
         # Έλεγχος για το νέο πεδίο reduced_hours
-        reduced_hours = self.reduced_hours # Αυτή είναι η διόρθωση
+        reduced_hours = self.reduced_hours
         if reduced_hours is not None:
             if not (1 <= reduced_hours <= 40):
                  raise ValidationError({'reduced_hours': 'Οι ώρες μειωμένου/υποχρεωτικού πρέπει να είναι μεταξύ 1 και 40.'})
  
     def save(self, *args, **kwargs):
-        # Υπολογισμός ετών, μηνών, ημερών με βάση τους τύπους του Excel
-        if self.start_date and self.end_date and self.reduced_hours is not None:
+        # Υπολογισμός ετών, μηνών, ημερών με βάση τους τύπους του Excel, ΜΟΝΟ αν manual_override είναι False
+        if not self.manual_override and self.start_date and self.end_date and self.reduced_hours is not None:
             # Υπολογισμός συνολικών ημερών με DAYS360 (Ευρωπαϊκή μέθοδος)
             # Προσθήκη 1 ημέρας στην end_date όπως στον τύπο του Excel
             total_days_360 = days360_european(self.start_date, self.end_date + datetime.timedelta(days=1))
@@ -409,8 +445,13 @@ class PriorService(models.Model):
             
             # =D9-(C15*360)-(D15*30) όπου C15=years, D15=months
             self.days = total_normalized_days - (self.years * 360) - (self.months * 30)
+        elif self.manual_override:
+            # Εάν είναι χειροκίνητη παράκαμψη, βεβαιωνόμαστε ότι οι τιμές είναι εντός των ορίων
+            self.years = max(0, self.years)
+            self.months = max(0, min(11, self.months))
+            self.days = max(0, min(30, self.days))
         else:
-            # Αν δεν υπάρχουν οι απαραίτητες τιμές, μηδενίζουμε τα πεδία διάρκειας
+            # Αν δεν υπάρχουν οι απαραίτητες τιμές και δεν είναι manual override, μηδενίζουμε τα πεδία διάρκειας
             self.years = 0
             self.months = 0
             self.days = 0
@@ -436,10 +477,11 @@ class PriorService(models.Model):
             employment_relation=self.employment_relation,
             start_date=self.start_date,
             end_date=self.end_date,
-            years=self.years, # Αντιγραφή του υπολογισμένου πεδίου
-            months=self.months, # Αντιγραφή του υπολογισμένου πεδίου
-            days=self.days, # Αντιγραφή του υπολογισμένου πεδίου
+            years=self.years, # Αντιγραφή του υπολογισμένου/χειροκίνητου πεδίου
+            months=self.months, # Αντιγραφή του υπολογισμένου/χειροκίνητου πεδίου
+            days=self.days, # Αντιγραφή του υπολογισμένου/χειροκίνητου πεδίου
             reduced_hours=self.reduced_hours, # Αντιγραφή του νέου πεδίου
+            manual_override=self.manual_override, # Αντιγραφή του νέου πεδίου
             history=self.history,
             notes=self.notes,
             internal_notes=self.internal_notes,
@@ -477,10 +519,11 @@ class PriorService(models.Model):
                 'school_year': service.application.school_year,
                 'employment_relation': service.employment_relation,
                 'protocol_number': service.protocol_number,
-                'years': service.years, # Συμπερίληψη του υπολογισμένου πεδίου
-                'months': service.months, # Συμπερίληψη του υπολογισμένου πεδίου
-                'days': service.days, # Συμπερίληψη του υπολογισμένου πεδίου
-                'reduced_hours': service.reduced_hours # Προσθήκη του νέου πεδίου στο ιστορικό
+                'years': service.years, # Συμπερίληψη του υπολογισμένου/χειροκίνητου πεδίου
+                'months': service.months, # Συμπερίληψη του υπολογισμένου/χειροκίνητου πεδίου
+                'days': service.days, # Συμπερίληψη του υπολογισμένου/χειροκίνητου πεδίου
+                'reduced_hours': service.reduced_hours, # Προσθήκη του νέου πεδίου στο ιστορικό
+                'manual_override': service.manual_override # Προσθήκη του νέου πεδίου στο ιστορικό
             }
             history_records.append(record)
         
