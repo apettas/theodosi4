@@ -50,7 +50,7 @@ from .forms import (
     CustomAuthenticationForm, CustomUserCreationForm, TeacherForm,
     TeacherSpecialtyForm, ApplicationForm, ApplicationStatusForm,
     PriorServiceForm, VerifyPriorServiceForm, ApplicationSearchForm,
-    PriorServiceSearchForm, ReportForm, PYSEEPForm
+    PriorServiceSearchForm, ReportForm, DetailedReportForm, PYSEEPForm
 )
 
 # Βοηθητική συνάρτηση για την καταγραφή ενεργειών
@@ -669,6 +669,9 @@ def add_prior_service(request, application_id):
                         years=prev_service.years,
                         months=prev_service.months,
                         days=prev_service.days,
+                        reduced_hours=prev_service.reduced_hours,
+                        manual_override=prev_service.manual_override,
+                        verified=prev_service.verified,
                         history=prev_service.history,
                         notes=prev_service.notes,
                         internal_notes=prev_service.internal_notes,
@@ -1202,59 +1205,836 @@ class PYSEEPCreateView(LoginRequiredMixin, CreateView):
 @login_required
 def create_pyseep_ajax(request):
     if request.method == 'POST':
-        act_number = request.POST.get('act_number', '').strip()
-        date = request.POST.get('date', '').strip()
-        school_year_id = request.POST.get('school_year', '').strip()
-        
-        if not act_number:
-            return JsonResponse({'success': False, 'error': 'Ο αριθμός πράξης είναι υποχρεωτικός.'})
-        
-        if not date:
-            return JsonResponse({'success': False, 'error': 'Η ημερομηνία είναι υποχρεωτική.'})
-            
-        if not school_year_id:
-            return JsonResponse({'success': False, 'error': 'Το σχολικό έτος είναι υποχρεωτικό.'})
-        
-        try:
-            # Έλεγχος εγκυρότητας σχολικού έτους
-            school_year = SchoolYear.objects.get(id=school_year_id)
-        except SchoolYear.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'Μη έγκυρο σχολικό έτος.'})
-        
-        # Έλεγχος αν υπάρχει ήδη
-        if PYSEEP.objects.filter(act_number=act_number, date=date).exists():
-            return JsonResponse({'success': False, 'error': 'Το ΠΥΣΕΕΠ με αυτόν τον αριθμό πράξης και ημερομηνία υπάρχει ήδη.'})
-        
-        try:
-            # Δημιουργία νέου ΠΥΣΕΕΠ
-            pyseep = PYSEEP.objects.create(
-                act_number=act_number,
-                date=date,
-                school_year=school_year
-            )
-            
-            # Καταγραφή της ενέργειας
-            log_action(
-                request,
-                'CREATE',
-                'OTHER',
-                pyseep.id,
-                new_values=json.dumps({
-                    'act_number': act_number,
-                    'date': date,
-                    'school_year': school_year.name
-                })
-            )
-            
+        form = PYSEEPForm(request.POST)
+        if form.is_valid():
+            pyseep = form.save()
+            log_action(request, 'CREATE', 'PYSEEP', pyseep.id)
             return JsonResponse({
                 'success': True,
                 'id': pyseep.id,
                 'act_number': pyseep.act_number,
-                'date': pyseep.date.strftime('%d/%m/%Y'),
-                'display_text': f"{pyseep.act_number} ({pyseep.date.strftime('%d/%m/%Y')})"
+                'date': pyseep.date.strftime('%Y-%m-%d'),
+                'school_year': pyseep.school_year.name,
+                'display_text': str(pyseep)
             })
+        else:
+            errors = {}
+            for field, messages in form.errors.items():
+                errors[field] = '; '.join(messages)
+            return JsonResponse({'success': False, 'errors': errors})
+    return JsonResponse({'success': False, 'error': 'Μη επιτρεπόμενη μέθοδος.'})
+# Δημιουργία λεπτομερούς αναφοράς με συγκεκριμένη ταξινόμηση
+@login_required
+def generate_detailed_report(request):
+    if request.method == 'POST':
+        form = DetailedReportForm(request.POST)
+        if form.is_valid():
+            pyseep = form.cleaned_data.get('pyseep')
+            report_format = form.cleaned_data.get('format')
             
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': f'Σφάλμα κατά τη δημιουργία: {str(e)}'})
+            # Φιλτράρισμα αιτήσεων για το συγκεκριμένο ΠΥΣΕΕΠ
+            applications = Application.objects.filter(
+                pyseep=pyseep,
+                status='COMPLETED'
+            ).select_related(
+                'teacher', 
+                'current_service', 
+                'employee_type'
+            ).prefetch_related(
+                'teacher__teacherspecialty_set__specialty',
+                'priorservice_set'
+            )
+            
+            # Ταξινόμηση: Υπηρεσία -> Φάση Πρόσληψης -> Επώνυμο -> Όνομα -> Ειδικότητα
+            applications = applications.order_by(
+                'current_service__name',
+                'recruitment_phase',
+                'teacher__last_name',
+                'teacher__first_name'
+            )
+            
+            # Δημιουργία δεδομένων αναφοράς με ομαδοποίηση
+            report_data = {}
+            
+            for application in applications:
+                # Κλειδί ομαδοποίησης: Υπηρεσία + Φάση Πρόσληψης
+                service_key = f"{application.current_service.name}"
+                phase_key = application.recruitment_phase or "Χωρίς Φάση"
+                
+                if service_key not in report_data:
+                    report_data[service_key] = {}
+                
+                if phase_key not in report_data[service_key]:
+                    report_data[service_key][phase_key] = []
+                
+                # Λήψη κύριας ειδικότητας
+                primary_specialty = None
+                teacher_specialties = application.teacher.teacherspecialty_set.filter(is_primary=True)
+                if teacher_specialties.exists():
+                    primary_specialty = teacher_specialties.first().specialty
+                else:
+                    # Αν δεν υπάρχει κύρια, πάρε την πρώτη
+                    all_specialties = application.teacher.teacherspecialty_set.all()
+                    if all_specialties.exists():
+                        primary_specialty = all_specialties.first().specialty
+                
+                # Λήψη προϋπηρεσιών
+                prior_services = []
+                for service in application.priorservice_set.all().order_by('start_date'):
+                    prior_services.append({
+                        'service_provider': service.service_provider.name,
+                        'protocol_number': service.protocol_number,
+                        'employment_relation': service.employment_relation.name,
+                        'start_date': service.start_date,
+                        'end_date': service.end_date,
+                        'years': service.years,
+                        'months': service.months,
+                        'days': service.days,
+                        'notes': service.notes or ''
+                    })
+                
+                # Υπολογισμός συνολικής προϋπηρεσίας για την αίτηση
+                total_years = application.total_calculated_years
+                total_months = application.total_calculated_months
+                total_days = application.total_calculated_days
+                
+                teacher_data = {
+                    'teacher': application.teacher,
+                    'specialty': primary_specialty,
+                    'submission_date': application.submission_date,
+                    'submission_comments': application.submission_comments or '',
+                    'prior_services': prior_services,
+                    'total_years': total_years,
+                    'total_months': total_months,
+                    'total_days': total_days
+                }
+                
+                report_data[service_key][phase_key].append(teacher_data)
+            
+            # Δημιουργία αναφοράς στο επιλεγμένο format
+            if report_format == 'xlsx':
+                return generate_detailed_excel_report(pyseep, report_data)
+            elif report_format == 'pdf':
+                return generate_detailed_pdf_report(pyseep, report_data)
+            elif report_format == 'docx':
+                return generate_detailed_docx_report(pyseep, report_data)
+    else:
+        form = DetailedReportForm()
     
-    return JsonResponse({'success': False, 'error': 'Μη έγκυρη μέθοδος.'})
+    return render(request, 'proipiresia/detailed_report_form.html', {'form': form})
+
+# Δημιουργία λεπτομερούς αναφοράς Excel
+def generate_detailed_excel_report(pyseep, report_data):
+    output = BytesIO()
+    workbook = xlsxwriter.Workbook(output)
+    worksheet = workbook.add_worksheet()
+    
+    # Στυλ
+    title_format = workbook.add_format({
+        'bold': True,
+        'font_size': 16,
+        'align': 'center',
+        'valign': 'vcenter'
+    })
+    
+    service_header_format = workbook.add_format({
+        'bold': True,
+        'font_size': 14,
+        'align': 'left',
+        'valign': 'vcenter',
+        'fg_color': '#4472C4',
+        'font_color': 'white',
+        'border': 1
+    })
+    
+    phase_header_format = workbook.add_format({
+        'bold': True,
+        'font_size': 12,
+        'align': 'left',
+        'valign': 'vcenter',
+        'fg_color': '#8EA9DB',
+        'border': 1
+    })
+    
+    table_header_format = workbook.add_format({
+        'bold': True,
+        'align': 'center',
+        'valign': 'vcenter',
+        'fg_color': '#D7E4BC',
+        'border': 1
+    })
+    
+    cell_format = workbook.add_format({
+        'align': 'left',
+        'valign': 'vcenter',
+        'border': 1
+    })
+    
+    total_format = workbook.add_format({
+        'bold': True,
+        'align': 'center',
+        'valign': 'vcenter',
+        'fg_color': '#FFE699',
+        'border': 1
+    })
+    
+    # Τίτλος
+    worksheet.merge_range(0, 0, 0, 8, f'ΑΝΑΦΟΡΑ ΠΡΟΥΠΗΡΕΣΙΩΝ - {pyseep.act_number}', title_format)
+    
+    row = 2
+    
+    # Επικεφαλίδες πίνακα προϋπηρεσιών
+    service_headers = ['Φορέας', 'Αρ. Πρωτοκόλλου', 'Σχέση Εργασίας', 'Από', 'Έως', 'Έτη', 'Μήνες', 'Μέρες', 'Παρατηρήσεις']
+    
+    for service_name, phases in report_data.items():
+        # Επικεφαλίδα υπηρεσίας
+        worksheet.merge_range(row, 0, row, 8, f'ΥΠΗΡΕΣΙΑ: {service_name}', service_header_format)
+        row += 1
+        
+        for phase_name, teachers in phases.items():
+            # Επικεφαλίδα φάσης πρόσληψης
+            worksheet.merge_range(row, 0, row, 8, f'ΦΑΣΗ ΠΡΟΣΛΗΨΗΣ: {phase_name}', phase_header_format)
+            row += 1
+            
+            for teacher_data in teachers:
+                teacher = teacher_data['teacher']
+                specialty = teacher_data['specialty']
+                
+                # Στοιχεία εκπαιδευτικού σε μία γραμμή
+                teacher_info = f"{teacher.last_name}, {teacher.first_name}"
+                if specialty:
+                    teacher_info += f", {specialty.code} - {specialty.description}"
+                if teacher_data['submission_date']:
+                    teacher_info += f", {teacher_data['submission_date'].strftime('%d/%m/%Y')}"
+                if teacher_data['submission_comments']:
+                    teacher_info += f", {teacher_data['submission_comments']}"
+                
+                worksheet.merge_range(row, 0, row, 8, teacher_info, cell_format)
+                row += 1
+                
+                # Επικεφαλίδες πίνακα προϋπηρεσιών
+                for col, header in enumerate(service_headers):
+                    worksheet.write(row, col, header, table_header_format)
+                row += 1
+                
+                # Προϋπηρεσίες
+                for service in teacher_data['prior_services']:
+                    worksheet.write(row, 0, service['service_provider'], cell_format)
+                    worksheet.write(row, 1, service['protocol_number'], cell_format)
+                    worksheet.write(row, 2, service['employment_relation'], cell_format)
+                    worksheet.write(row, 3, service['start_date'].strftime('%d/%m/%Y'), cell_format)
+                    worksheet.write(row, 4, service['end_date'].strftime('%d/%m/%Y'), cell_format)
+                    worksheet.write(row, 5, service['years'], cell_format)
+                    worksheet.write(row, 6, service['months'], cell_format)
+                    worksheet.write(row, 7, service['days'], cell_format)
+                    worksheet.write(row, 8, service['notes'], cell_format)
+                    row += 1
+                
+                # Σύνολο
+                worksheet.write(row, 0, 'ΣΥΝΟΛΟ:', total_format)
+                worksheet.write(row, 1, '', total_format)
+                worksheet.write(row, 2, '', total_format)
+                worksheet.write(row, 3, '', total_format)
+                worksheet.write(row, 4, '', total_format)
+                worksheet.write(row, 5, teacher_data['total_years'], total_format)
+                worksheet.write(row, 6, teacher_data['total_months'], total_format)
+                worksheet.write(row, 7, teacher_data['total_days'], total_format)
+                worksheet.write(row, 8, '', total_format)
+                row += 2  # Κενή γραμμή
+    
+    # Ρυθμίσεις στηλών
+    worksheet.set_column(0, 0, 25)  # Φορέας
+    worksheet.set_column(1, 1, 15)  # Αρ. Πρωτοκόλλου
+    worksheet.set_column(2, 2, 20)  # Σχέση Εργασίας
+    worksheet.set_column(3, 4, 12)  # Από, Έως
+    worksheet.set_column(5, 7, 8)   # Έτη, Μήνες, Μέρες
+    worksheet.set_column(8, 8, 30)  # Παρατηρήσεις
+    
+    workbook.close()
+    output.seek(0)
+    
+    response = HttpResponse(
+        output.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="detailed_report_{pyseep.act_number}.xlsx"'
+    
+    return response
+
+# Δημιουργία λεπτομερούς αναφοράς PDF
+def generate_detailed_pdf_report(pyseep, report_data):
+    output = BytesIO()
+    
+    doc = SimpleDocTemplate(output, pagesize=A4)
+    styles = getSampleStyleSheet()
+    story = []
+    
+    # Τίτλος
+    title = Paragraph(f'ΑΝΑΦΟΡΑ ΠΡΟΥΠΗΡΕΣΙΩΝ - {pyseep.act_number}', styles['Title'])
+    story.append(title)
+    story.append(Paragraph('<br/><br/>', styles['Normal']))
+    
+    for service_name, phases in report_data.items():
+        # Επικεφαλίδα υπηρεσίας
+        service_title = Paragraph(f'<b>ΥΠΗΡΕΣΙΑ: {service_name}</b>', styles['Heading1'])
+        story.append(service_title)
+        
+        for phase_name, teachers in phases.items():
+            # Επικεφαλίδα φάσης πρόσληψης
+            phase_title = Paragraph(f'<b>ΦΑΣΗ ΠΡΟΣΛΗΨΗΣ: {phase_name}</b>', styles['Heading2'])
+            story.append(phase_title)
+            
+            for teacher_data in teachers:
+                teacher = teacher_data['teacher']
+                specialty = teacher_data['specialty']
+                
+                # Στοιχεία εκπαιδευτικού
+                teacher_info = f"{teacher.last_name}, {teacher.first_name}"
+                if specialty:
+                    teacher_info += f", {specialty.code} - {specialty.description}"
+                if teacher_data['submission_date']:
+                    teacher_info += f", {teacher_data['submission_date'].strftime('%d/%m/%Y')}"
+                if teacher_data['submission_comments']:
+                    teacher_info += f", {teacher_data['submission_comments']}"
+                
+                teacher_para = Paragraph(f'<b>{teacher_info}</b>', styles['Normal'])
+                story.append(teacher_para)
+                
+                # Πίνακας προϋπηρεσιών
+                table_data = [['Φορέας', 'Αρ. Πρωτοκόλλου', 'Σχέση Εργασίας', 'Από', 'Έως', 'Έτη', 'Μήνες', 'Μέρες', 'Παρατηρήσεις']]
+                
+                for service in teacher_data['prior_services']:
+                    table_data.append([
+                        service['service_provider'],
+                        service['protocol_number'],
+                        service['employment_relation'],
+                        service['start_date'].strftime('%d/%m/%Y'),
+                        service['end_date'].strftime('%d/%m/%Y'),
+                        str(service['years']),
+                        str(service['months']),
+                        str(service['days']),
+                        service['notes']
+                    ])
+                
+                # Γραμμή συνόλου
+                table_data.append([
+                    'ΣΥΝΟΛΟ:', '', '', '', '',
+                    str(teacher_data['total_years']),
+                    str(teacher_data['total_months']),
+                    str(teacher_data['total_days']),
+                    ''
+                ])
+                
+                table = Table(table_data)
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 8),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -2), colors.beige),
+                    ('BACKGROUND', (0, -1), (-1, -1), colors.yellow),
+                    ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ]))
+                
+                story.append(table)
+                story.append(Paragraph('<br/>', styles['Normal']))
+    
+    doc.build(story)
+    output.seek(0)
+    
+    response = HttpResponse(output.read(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="detailed_report_{pyseep.act_number}.pdf"'
+    
+    return response
+
+# Δημιουργία λεπτομερούς αναφοράς Word
+def generate_detailed_docx_report(pyseep, report_data):
+    document = Document()
+    
+    # Τίτλος
+    title = document.add_heading(f'ΑΝΑΦΟΡΑ ΠΡΟΥΠΗΡΕΣΙΩΝ - {pyseep.act_number}', 0)
+    title.alignment = 1  # Κεντράρισμα
+    
+    for service_name, phases in report_data.items():
+        # Επικεφαλίδα υπηρεσίας
+        document.add_heading(f'ΥΠΗΡΕΣΙΑ: {service_name}', level=1)
+        
+        for phase_name, teachers in phases.items():
+            # Επικεφαλίδα φάσης πρόσληψης
+            document.add_heading(f'ΦΑΣΗ ΠΡΟΣΛΗΨΗΣ: {phase_name}', level=2)
+            
+            for teacher_data in teachers:
+                teacher = teacher_data['teacher']
+                specialty = teacher_data['specialty']
+                
+                # Στοιχεία εκπαιδευτικού
+                teacher_info = f"{teacher.last_name}, {teacher.first_name}"
+                if specialty:
+                    teacher_info += f", {specialty.code} - {specialty.description}"
+                if teacher_data['submission_date']:
+                    teacher_info += f", {teacher_data['submission_date'].strftime('%d/%m/%Y')}"
+                if teacher_data['submission_comments']:
+                    teacher_info += f", {teacher_data['submission_comments']}"
+                
+                teacher_para = document.add_paragraph()
+                teacher_run = teacher_para.add_run(teacher_info)
+                teacher_run.bold = True
+                
+                # Πίνακας προϋπηρεσιών
+                table = document.add_table(rows=1, cols=9)
+                table.style = 'Table Grid'
+                
+                # Επικεφαλίδες
+                headers = ['Φορέας', 'Αρ. Πρωτοκόλλου', 'Σχέση Εργασίας', 'Από', 'Έως', 'Έτη', 'Μήνες', 'Μέρες', 'Παρατηρήσεις']
+                header_cells = table.rows[0].cells
+                for i, header in enumerate(headers):
+                    header_cells[i].text = header
+                    header_cells[i].paragraphs[0].runs[0].bold = True
+                
+                # Προϋπηρεσίες
+                for service in teacher_data['prior_services']:
+                    row_cells = table.add_row().cells
+                    row_cells[0].text = service['service_provider']
+                    row_cells[1].text = service['protocol_number']
+                    row_cells[2].text = service['employment_relation']
+                    row_cells[3].text = service['start_date'].strftime('%d/%m/%Y')
+                    row_cells[4].text = service['end_date'].strftime('%d/%m/%Y')
+                    row_cells[5].text = str(service['years'])
+                    row_cells[6].text = str(service['months'])
+                    row_cells[7].text = str(service['days'])
+                    row_cells[8].text = service['notes']
+                
+                # Γραμμή συνόλου
+                total_row = table.add_row().cells
+                total_row[0].text = 'ΣΥΝΟΛΟ:'
+                total_row[0].paragraphs[0].runs[0].bold = True
+                total_row[5].text = str(teacher_data['total_years'])
+                total_row[5].paragraphs[0].runs[0].bold = True
+                total_row[6].text = str(teacher_data['total_months'])
+                total_row[6].paragraphs[0].runs[0].bold = True
+                total_row[7].text = str(teacher_data['total_days'])
+                total_row[7].paragraphs[0].runs[0].bold = True
+                
+                document.add_paragraph()  # Κενή γραμμή
+    
+    # Αποθήκευση
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.docx')
+    document.save(temp_file.name)
+    
+    with open(temp_file.name, 'rb') as file:
+        response = HttpResponse(file.read(), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        response['Content-Disposition'] = f'attachment; filename="detailed_report_{pyseep.act_number}.docx"'
+    
+    os.unlink(temp_file.name)
+    return response
+
+# Δημιουργία λεπτομερούς αναφοράς με συγκεκριμένη ταξινόμηση
+@login_required
+def generate_detailed_report(request):
+    if request.method == 'POST':
+        form = DetailedReportForm(request.POST)
+        if form.is_valid():
+            pyseep = form.cleaned_data.get('pyseep')
+            report_format = form.cleaned_data.get('format')
+            
+            # Φιλτράρισμα αιτήσεων για το συγκεκριμένο ΠΥΣΕΕΠ
+            applications = Application.objects.filter(
+                pyseep=pyseep,
+                status='COMPLETED'
+            ).select_related(
+                'teacher', 
+                'current_service', 
+                'employee_type'
+            ).prefetch_related(
+                'teacher__teacherspecialty_set__specialty',
+                'priorservice_set'
+            )
+            
+            # Ταξινόμηση: Υπηρεσία -> Φάση Πρόσληψης -> Επώνυμο -> Όνομα -> Ειδικότητα
+            applications = applications.order_by(
+                'current_service__name',
+                'recruitment_phase',
+                'teacher__last_name',
+                'teacher__first_name'
+            )
+            
+            # Δημιουργία δεδομένων αναφοράς με ομαδοποίηση
+            report_data = {}
+            
+            for application in applications:
+                # Κλειδί ομαδοποίησης: Υπηρεσία + Φάση Πρόσληψης
+                service_key = f"{application.current_service.name}"
+                phase_key = application.recruitment_phase or "Χωρίς Φάση"
+                
+                if service_key not in report_data:
+                    report_data[service_key] = {}
+                
+                if phase_key not in report_data[service_key]:
+                    report_data[service_key][phase_key] = []
+                
+                # Λήψη κύριας ειδικότητας
+                primary_specialty = None
+                teacher_specialties = application.teacher.teacherspecialty_set.filter(is_primary=True)
+                if teacher_specialties.exists():
+                    primary_specialty = teacher_specialties.first().specialty
+                else:
+                    # Αν δεν υπάρχει κύρια, πάρε την πρώτη
+                    all_specialties = application.teacher.teacherspecialty_set.all()
+                    if all_specialties.exists():
+                        primary_specialty = all_specialties.first().specialty
+                
+                # Λήψη προϋπηρεσιών
+                prior_services = []
+                for service in application.priorservice_set.all().order_by('start_date'):
+                    prior_services.append({
+                        'service_provider': service.service_provider.name,
+                        'protocol_number': service.protocol_number,
+                        'employment_relation': service.employment_relation.name,
+                        'start_date': service.start_date,
+                        'end_date': service.end_date,
+                        'years': service.years,
+                        'months': service.months,
+                        'days': service.days,
+                        'notes': service.notes or ''
+                    })
+                
+                # Υπολογισμός συνολικής προϋπηρεσίας για την αίτηση
+                total_years = application.total_calculated_years
+                total_months = application.total_calculated_months
+                total_days = application.total_calculated_days
+                
+                teacher_data = {
+                    'teacher': application.teacher,
+                    'specialty': primary_specialty,
+                    'submission_date': application.submission_date,
+                    'submission_comments': application.submission_comments or '',
+                    'prior_services': prior_services,
+                    'total_years': total_years,
+                    'total_months': total_months,
+                    'total_days': total_days
+                }
+                
+                report_data[service_key][phase_key].append(teacher_data)
+            
+            # Δημιουργία αναφοράς στο επιλεγμένο format
+            if report_format == 'xlsx':
+                return generate_detailed_excel_report(pyseep, report_data)
+            elif report_format == 'pdf':
+                return generate_detailed_pdf_report(pyseep, report_data)
+            elif report_format == 'docx':
+                return generate_detailed_docx_report(pyseep, report_data)
+    else:
+        form = DetailedReportForm()
+    
+    return render(request, 'proipiresia/detailed_report_form.html', {'form': form})
+
+# Δημιουργία λεπτομερούς αναφοράς Excel
+def generate_detailed_excel_report(pyseep, report_data):
+    output = BytesIO()
+    workbook = xlsxwriter.Workbook(output)
+    worksheet = workbook.add_worksheet()
+    
+    # Στυλ
+    title_format = workbook.add_format({
+        'bold': True,
+        'font_size': 16,
+        'align': 'center',
+        'valign': 'vcenter'
+    })
+    
+    service_header_format = workbook.add_format({
+        'bold': True,
+        'font_size': 14,
+        'align': 'left',
+        'valign': 'vcenter',
+        'fg_color': '#4472C4',
+        'font_color': 'white',
+        'border': 1
+    })
+    
+    phase_header_format = workbook.add_format({
+        'bold': True,
+        'font_size': 12,
+        'align': 'left',
+        'valign': 'vcenter',
+        'fg_color': '#8EA9DB',
+        'border': 1
+    })
+    
+    table_header_format = workbook.add_format({
+        'bold': True,
+        'align': 'center',
+        'valign': 'vcenter',
+        'fg_color': '#D7E4BC',
+        'border': 1
+    })
+    
+    cell_format = workbook.add_format({
+        'align': 'left',
+        'valign': 'vcenter',
+        'border': 1
+    })
+    
+    total_format = workbook.add_format({
+        'bold': True,
+        'align': 'center',
+        'valign': 'vcenter',
+        'fg_color': '#FFE699',
+        'border': 1
+    })
+    
+    # Τίτλος
+    worksheet.merge_range(0, 0, 0, 8, f'ΑΝΑΦΟΡΑ ΠΡΟΥΠΗΡΕΣΙΩΝ - {pyseep.act_number}', title_format)
+    
+    row = 2
+    
+    # Επικεφαλίδες πίνακα προϋπηρεσιών
+    service_headers = ['Φορέας', 'Αρ. Πρωτοκόλλου', 'Σχέση Εργασίας', 'Από', 'Έως', 'Έτη', 'Μήνες', 'Μέρες', 'Παρατηρήσεις']
+    
+    for service_name, phases in report_data.items():
+        # Επικεφαλίδα υπηρεσίας
+        worksheet.merge_range(row, 0, row, 8, f'ΥΠΗΡΕΣΙΑ: {service_name}', service_header_format)
+        row += 1
+        
+        for phase_name, teachers in phases.items():
+            # Επικεφαλίδα φάσης πρόσληψης
+            worksheet.merge_range(row, 0, row, 8, f'ΦΑΣΗ ΠΡΟΣΛΗΨΗΣ: {phase_name}', phase_header_format)
+            row += 1
+            
+            for teacher_data in teachers:
+                teacher = teacher_data['teacher']
+                specialty = teacher_data['specialty']
+                
+                # Στοιχεία εκπαιδευτικού σε μία γραμμή
+                teacher_info = f"{teacher.last_name}, {teacher.first_name}"
+                if specialty:
+                    teacher_info += f", {specialty.code} - {specialty.description}"
+                if teacher_data['submission_date']:
+                    teacher_info += f", {teacher_data['submission_date'].strftime('%d/%m/%Y')}"
+                if teacher_data['submission_comments']:
+                    teacher_info += f", {teacher_data['submission_comments']}"
+                
+                worksheet.merge_range(row, 0, row, 8, teacher_info, cell_format)
+                row += 1
+                
+                # Επικεφαλίδες πίνακα προϋπηρεσιών
+                for col, header in enumerate(service_headers):
+                    worksheet.write(row, col, header, table_header_format)
+                row += 1
+                
+                # Προϋπηρεσίες
+                for service in teacher_data['prior_services']:
+                    worksheet.write(row, 0, service['service_provider'], cell_format)
+                    worksheet.write(row, 1, service['protocol_number'], cell_format)
+                    worksheet.write(row, 2, service['employment_relation'], cell_format)
+                    worksheet.write(row, 3, service['start_date'].strftime('%d/%m/%Y'), cell_format)
+                    worksheet.write(row, 4, service['end_date'].strftime('%d/%m/%Y'), cell_format)
+                    worksheet.write(row, 5, service['years'], cell_format)
+                    worksheet.write(row, 6, service['months'], cell_format)
+                    worksheet.write(row, 7, service['days'], cell_format)
+                    worksheet.write(row, 8, service['notes'], cell_format)
+                    row += 1
+                
+                # Σύνολο
+                worksheet.write(row, 0, 'ΣΥΝΟΛΟ:', total_format)
+                worksheet.write(row, 1, '', total_format)
+                worksheet.write(row, 2, '', total_format)
+                worksheet.write(row, 3, '', total_format)
+                worksheet.write(row, 4, '', total_format)
+                worksheet.write(row, 5, teacher_data['total_years'], total_format)
+                worksheet.write(row, 6, teacher_data['total_months'], total_format)
+                worksheet.write(row, 7, teacher_data['total_days'], total_format)
+                worksheet.write(row, 8, '', total_format)
+                row += 2  # Κενή γραμμή
+    
+    # Ρυθμίσεις στηλών
+    worksheet.set_column(0, 0, 25)  # Φορέας
+    worksheet.set_column(1, 1, 15)  # Αρ. Πρωτοκόλλου
+    worksheet.set_column(2, 2, 20)  # Σχέση Εργασίας
+    worksheet.set_column(3, 4, 12)  # Από, Έως
+    worksheet.set_column(5, 7, 8)   # Έτη, Μήνες, Μέρες
+    worksheet.set_column(8, 8, 30)  # Παρατηρήσεις
+    
+    workbook.close()
+    output.seek(0)
+    
+    response = HttpResponse(
+        output.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="detailed_report_{pyseep.act_number}.xlsx"'
+    
+    return response
+
+# Δημιουργία λεπτομερούς αναφοράς PDF
+def generate_detailed_pdf_report(pyseep, report_data):
+    output = BytesIO()
+    
+    doc = SimpleDocTemplate(output, pagesize=A4)
+    styles = getSampleStyleSheet()
+    story = []
+    
+    # Τίτλος
+    title = Paragraph(f'ΑΝΑΦΟΡΑ ΠΡΟΥΠΗΡΕΣΙΩΝ - {pyseep.act_number}', styles['Title'])
+    story.append(title)
+    story.append(Paragraph('<br/><br/>', styles['Normal']))
+    
+    for service_name, phases in report_data.items():
+        # Επικεφαλίδα υπηρεσίας
+        service_title = Paragraph(f'<b>ΥΠΗΡΕΣΙΑ: {service_name}</b>', styles['Heading1'])
+        story.append(service_title)
+        
+        for phase_name, teachers in phases.items():
+            # Επικεφαλίδα φάσης πρόσληψης
+            phase_title = Paragraph(f'<b>ΦΑΣΗ ΠΡΟΣΛΗΨΗΣ: {phase_name}</b>', styles['Heading2'])
+            story.append(phase_title)
+            
+            for teacher_data in teachers:
+                teacher = teacher_data['teacher']
+                specialty = teacher_data['specialty']
+                
+                # Στοιχεία εκπαιδευτικού
+                teacher_info = f"{teacher.last_name}, {teacher.first_name}"
+                if specialty:
+                    teacher_info += f", {specialty.code} - {specialty.description}"
+                if teacher_data['submission_date']:
+                    teacher_info += f", {teacher_data['submission_date'].strftime('%d/%m/%Y')}"
+                if teacher_data['submission_comments']:
+                    teacher_info += f", {teacher_data['submission_comments']}"
+                
+                teacher_para = Paragraph(f'<b>{teacher_info}</b>', styles['Normal'])
+                story.append(teacher_para)
+                
+                # Πίνακας προϋπηρεσιών
+                table_data = [['Φορέας', 'Αρ. Πρωτοκόλλου', 'Σχέση Εργασίας', 'Από', 'Έως', 'Έτη', 'Μήνες', 'Μέρες', 'Παρατηρήσεις']]
+                
+                for service in teacher_data['prior_services']:
+                    table_data.append([
+                        service['service_provider'],
+                        service['protocol_number'],
+                        service['employment_relation'],
+                        service['start_date'].strftime('%d/%m/%Y'),
+                        service['end_date'].strftime('%d/%m/%Y'),
+                        str(service['years']),
+                        str(service['months']),
+                        str(service['days']),
+                        service['notes']
+                    ])
+                
+                # Γραμμή συνόλου
+                table_data.append([
+                    'ΣΥΝΟΛΟ:', '', '', '', '',
+                    str(teacher_data['total_years']),
+                    str(teacher_data['total_months']),
+                    str(teacher_data['total_days']),
+                    ''
+                ])
+                
+                table = Table(table_data)
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 8),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -2), colors.beige),
+                    ('BACKGROUND', (0, -1), (-1, -1), colors.yellow),
+                    ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ]))
+                
+                story.append(table)
+                story.append(Paragraph('<br/>', styles['Normal']))
+    
+    doc.build(story)
+    output.seek(0)
+    
+    response = HttpResponse(output.read(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="detailed_report_{pyseep.act_number}.pdf"'
+    
+    return response
+
+# Δημιουργία λεπτομερούς αναφοράς Word
+def generate_detailed_docx_report(pyseep, report_data):
+    document = Document()
+    
+    # Τίτλος
+    title = document.add_heading(f'ΑΝΑΦΟΡΑ ΠΡΟΥΠΗΡΕΣΙΩΝ - {pyseep.act_number}', 0)
+    title.alignment = 1  # Κεντράρισμα
+    
+    for service_name, phases in report_data.items():
+        # Επικεφαλίδα υπηρεσίας
+        document.add_heading(f'ΥΠΗΡΕΣΙΑ: {service_name}', level=1)
+        
+        for phase_name, teachers in phases.items():
+            # Επικεφαλίδα φάσης πρόσληψης
+            document.add_heading(f'ΦΑΣΗ ΠΡΟΣΛΗΨΗΣ: {phase_name}', level=2)
+            
+            for teacher_data in teachers:
+                teacher = teacher_data['teacher']
+                specialty = teacher_data['specialty']
+                
+                # Στοιχεία εκπαιδευτικού
+                teacher_info = f"{teacher.last_name}, {teacher.first_name}"
+                if specialty:
+                    teacher_info += f", {specialty.code} - {specialty.description}"
+                if teacher_data['submission_date']:
+                    teacher_info += f", {teacher_data['submission_date'].strftime('%d/%m/%Y')}"
+                if teacher_data['submission_comments']:
+                    teacher_info += f", {teacher_data['submission_comments']}"
+                
+                teacher_para = document.add_paragraph()
+                teacher_run = teacher_para.add_run(teacher_info)
+                teacher_run.bold = True
+                
+                # Πίνακας προϋπηρεσιών
+                table = document.add_table(rows=1, cols=9)
+                table.style = 'Table Grid'
+                
+                # Επικεφαλίδες
+                headers = ['Φορέας', 'Αρ. Πρωτοκόλλου', 'Σχέση Εργασίας', 'Από', 'Έως', 'Έτη', 'Μήνες', 'Μέρες', 'Παρατηρήσεις']
+                header_cells = table.rows[0].cells
+                for i, header in enumerate(headers):
+                    header_cells[i].text = header
+                    header_cells[i].paragraphs[0].runs[0].bold = True
+                
+                # Προϋπηρεσίες
+                for service in teacher_data['prior_services']:
+                    row_cells = table.add_row().cells
+                    row_cells[0].text = service['service_provider']
+                    row_cells[1].text = service['protocol_number']
+                    row_cells[2].text = service['employment_relation']
+                    row_cells[3].text = service['start_date'].strftime('%d/%m/%Y')
+                    row_cells[4].text = service['end_date'].strftime('%d/%m/%Y')
+                    row_cells[5].text = str(service['years'])
+                    row_cells[6].text = str(service['months'])
+                    row_cells[7].text = str(service['days'])
+                    row_cells[8].text = service['notes']
+                
+                # Γραμμή συνόλου
+                total_row = table.add_row().cells
+                total_row[0].text = 'ΣΥΝΟΛΟ:'
+                total_row[0].paragraphs[0].runs[0].bold = True
+                total_row[5].text = str(teacher_data['total_years'])
+                total_row[5].paragraphs[0].runs[0].bold = True
+                total_row[6].text = str(teacher_data['total_months'])
+                total_row[6].paragraphs[0].runs[0].bold = True
+                total_row[7].text = str(teacher_data['total_days'])
+                total_row[7].paragraphs[0].runs[0].bold = True
+                
+                document.add_paragraph()  # Κενή γραμμή
+    
+    # Αποθήκευση
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.docx')
+    document.save(temp_file.name)
+    
+    with open(temp_file.name, 'rb') as file:
+        response = HttpResponse(file.read(), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        response['Content-Disposition'] = f'attachment; filename="detailed_report_{pyseep.act_number}.docx"'
+    
+    os.unlink(temp_file.name)
+    return response

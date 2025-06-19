@@ -123,6 +123,24 @@
                                     </td>
                                 </tr>
                                 <tr>
+                                    <th>Ειδικότητα:</th>
+                                    <td>
+                                        {% with specialties=application.teacher.teacherspecialty_set.all %}
+                                        {% if specialties %}
+                                            {% for teacher_specialty in specialties %}
+                                                <span class="badge {% if teacher_specialty.is_primary %}bg-primary{% else %}bg-secondary{% endif %} me-1">
+                                                    {{ teacher_specialty.specialty.code }} - {{ teacher_specialty.specialty.description }}
+                                                    {% if teacher_specialty.is_primary %} (Κύρια){% endif %}
+                                                </span>
+                                                {% if not forloop.last %}<br>{% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted">Δεν έχει οριστεί ειδικότητα</span>
+                                        {% endif %}
+                                        {% endwith %}
+                                    </td>
+                                </tr>
+                                <tr>
                                     <th>Υπηρεσία:</th>
                                     <td>{{ application.current_service }}</td>
                                 </tr>

@@ -310,6 +310,25 @@ class ReportForm(forms.Form):
     )
 
 
+# Φόρμα για την εξαγωγή νέας αναφοράς με λεπτομερή ταξινόμηση
+class DetailedReportForm(forms.Form):
+    pyseep = forms.ModelChoiceField(
+        required=True,
+        queryset=PYSEEP.objects.all(),
+        label='ΠΥΣΕΕΠ',
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    format = forms.ChoiceField(
+        required=True,
+        choices=[
+            ('xlsx', 'Excel'),
+            ('pdf', 'PDF'),
+            ('docx', 'Word')
+        ],
+        label='Μορφή Αρχείου',
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+
 # Φόρμα για δημιουργία ΠΥΣΕΕΠ
 class PYSEEPForm(forms.ModelForm):
     class Meta:

@@ -351,7 +351,16 @@
                     // Εμφάνιση μηνύματος επιτυχίας
                     showSuccessMessage('Το ΠΥΣΕΕΠ δημιουργήθηκε επιτυχώς!');
                 } else {
-                    showError(data.error);
+                    // Εμφάνιση errors της φόρμας
+                    if (data.errors) {
+                        let errorMessages = '';
+                        for (const field in data.errors) {
+                            errorMessages += `${field}: ${data.errors[field]}\n`;
+                        }
+                        showError(errorMessages);
+                    } else {
+                        showError(data.error || 'Άγνωστο σφάλμα.');
+                    }
                 }
             })
             .catch(error => {

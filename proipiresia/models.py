@@ -482,6 +482,8 @@ class PriorService(models.Model):
             days=self.days, # Αντιγραφή του υπολογισμένου/χειροκίνητου πεδίου
             reduced_hours=self.reduced_hours, # Αντιγραφή του νέου πεδίου
             manual_override=self.manual_override, # Αντιγραφή του νέου πεδίου
+            verified=self.verified, # Αντιγραφή του verified status
+            verified_by=self.verified_by, # Αντιγραφή του verified_by
             history=self.history,
             notes=self.notes,
             internal_notes=self.internal_notes,
