@@ -310,8 +310,8 @@ class ReportForm(forms.Form):
     )
 
 
-# Φόρμα για την εξαγωγή νέας αναφοράς με λεπτομερή ταξινόμηση
-class DetailedReportForm(forms.Form):
+# Φόρμα για την εξαγωγή αναφοράς ΠΥΣΕΕΠ
+class PYSEEPReportForm(forms.Form):
     pyseep = forms.ModelChoiceField(
         required=True,
         queryset=PYSEEP.objects.all(),
