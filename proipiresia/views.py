@@ -352,7 +352,7 @@ class ApplicationDetailView(LoginRequiredMixin, DetailView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['prior_services'] = self.object.priorservice_set.all().order_by('start_date')
+        context['prior_services'] = self.object.priorservice_set.all().order_by('start_date', 'end_date')
         
         # Υπολογισμός συνολικής προϋπηρεσίας
         totals = self.object.priorservice_set.aggregate(
