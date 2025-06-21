@@ -158,17 +158,34 @@
 (function() {
     'use strict';
     window.addEventListener('load', function() {
+        console.log('Form validation script loaded');
         var forms = document.getElementsByClassName('needs-validation');
+        console.log('Found forms:', forms.length);
         var validation = Array.prototype.filter.call(forms, function(form) {
             form.addEventListener('submit', function(event) {
+                console.log('Form submit event triggered');
+                console.log('Form validity:', form.checkValidity());
                 if (form.checkValidity() === false) {
+                    console.log('Form validation failed - preventing submit');
                     event.preventDefault();
                     event.stopPropagation();
+                } else {
+                    console.log('Form validation passed - submitting');
                 }
                 form.classList.add('was-validated');
             }, false);
         });
     }, false);
 })();
+
+// Debug button click
+document.addEventListener('DOMContentLoaded', function() {
+    var submitBtn = document.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', function(e) {
+            console.log('Submit button clicked');
+        });
+    }
+});
 </script>
 {% endblock %}

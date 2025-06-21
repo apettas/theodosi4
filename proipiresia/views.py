@@ -886,15 +886,19 @@ def verify_prior_service(request, pk):
 # Νέα Αναφορά ΠΥΣΕΕΠ - Landscape format
 @login_required
 def generate_pyseep_service_report(request):
+    print(f"DEBUG: generate_pyseep_service_report called with method: {request.method}")
+    print(f"DEBUG: GET params: {request.GET}")
+    print(f"DEBUG: POST params: {request.POST}")
+    
     # Έλεγχος αν έχει περαστεί συγκεκριμένο ΠΥΣΕΕΠ ως παράμετρος (από link)
     pyseep_id = request.GET.get('pyseep')
     if pyseep_id:
         try:
             pyseep = PYSEEP.objects.get(id=pyseep_id)
-            # Φιλτράρισμα αιτήσεων για το συγκεκριμένο ΠΥΣΕΕΠ με status 'READY_FOR_PYSEEP'
+            # Φιλτράρισμα αιτήσεων για το συγκεκριμένο ΠΥΣΕΕΠ με status 'READY_FOR_PYSEEP' ή 'COMPLETED'
             applications = Application.objects.filter(
                 pyseep=pyseep,
-                status='READY_FOR_PYSEEP'
+                status__in=['READY_FOR_PYSEEP', 'COMPLETED']
             ).select_related(
                 'teacher', 'current_service'
             ).prefetch_related(
@@ -913,10 +917,10 @@ def generate_pyseep_service_report(request):
             pyseep = form.cleaned_data.get('pyseep')
             report_format = form.cleaned_data.get('format')
             
-            # Φιλτράρισμα αιτήσεων για το συγκεκριμένο ΠΥΣΕΕΠ με status 'READY_FOR_PYSEEP'
+            # Φιλτράρισμα αιτήσεων για το συγκεκριμένο ΠΥΣΕΕΠ με status 'READY_FOR_PYSEEP' ή 'COMPLETED'
             applications = Application.objects.filter(
                 pyseep=pyseep,
-                status='READY_FOR_PYSEEP'
+                status__in=['READY_FOR_PYSEEP', 'COMPLETED']
             ).select_related(
                 'teacher', 'current_service'
             ).prefetch_related(
@@ -930,10 +934,65 @@ def generate_pyseep_service_report(request):
                 return generate_pyseep_docx_landscape_report(pyseep, applications)
             elif report_format == 'pdf':
                 return generate_pyseep_pdf_landscape_report(pyseep, applications)
+            else:
+                # Fallback σε PDF αν το format δεν αναγνωρίζεται
+                return generate_pyseep_pdf_landscape_report(pyseep, applications)
     else:
         form = PYSEEPServiceReportForm()
     
     return render(request, 'proipiresia/pyseep_service_report_form.html', {'form': form})
+
+# Άμεση δημιουργία αναφοράς PDF από link
+@login_required
+def generate_pyseep_direct_pdf(request, pyseep_id):
+    """Άμεση δημιουργία αναφοράς ΠΥΣΕΕΠ σε PDF format από direct link"""
+    try:
+        pyseep = PYSEEP.objects.get(id=pyseep_id)
+        
+        # Φιλτράρισμα αιτήσεων για το συγκεκριμένο ΠΥΣΕΕΠ
+        applications = Application.objects.filter(
+            pyseep=pyseep,
+            status__in=['READY_FOR_PYSEEP', 'COMPLETED']
+        ).select_related(
+            'teacher', 'current_service'
+        ).prefetch_related(
+            'teacher__teacherspecialty_set__specialty',
+            'priorservice_set__service_provider',
+            'priorservice_set__employment_relation'
+        ).order_by('teacher__last_name', 'teacher__first_name')
+        
+        # Δημιουργία αναφοράς PDF
+        return generate_pyseep_pdf_landscape_report(pyseep, applications)
+        
+    except PYSEEP.DoesNotExist:
+        messages.error(request, f'Το ΠΥΣΕΕΠ με ID {pyseep_id} δεν βρέθηκε.')
+        return redirect('home')
+
+# Άμεση δημιουργία αναφοράς Word από link
+@login_required
+def generate_pyseep_direct_word(request, pyseep_id):
+    """Άμεση δημιουργία αναφοράς ΠΥΣΕΕΠ σε Word format από direct link"""
+    try:
+        pyseep = PYSEEP.objects.get(id=pyseep_id)
+        
+        # Φιλτράρισμα αιτήσεων για το συγκεκριμένο ΠΥΣΕΕΠ
+        applications = Application.objects.filter(
+            pyseep=pyseep,
+            status__in=['READY_FOR_PYSEEP', 'COMPLETED']
+        ).select_related(
+            'teacher', 'current_service'
+        ).prefetch_related(
+            'teacher__teacherspecialty_set__specialty',
+            'priorservice_set__service_provider',
+            'priorservice_set__employment_relation'
+        ).order_by('teacher__last_name', 'teacher__first_name')
+        
+        # Δημιουργία αναφοράς Word
+        return generate_pyseep_docx_landscape_report(pyseep, applications)
+        
+    except PYSEEP.DoesNotExist:
+        messages.error(request, f'Το ΠΥΣΕΕΠ με ID {pyseep_id} δεν βρέθηκε.')
+        return redirect('home')
 
 # Δημιουργία landscape αναφοράς Word
 def generate_pyseep_docx_landscape_report(pyseep, applications):
@@ -1392,7 +1451,10 @@ def create_pyseep_ajax(request):
 
 
 
+def generate_pyseep_excel_report(pyseep, applications):
     """Δημιουργία αναφοράς PYSEEP σε Excel"""
+    import io
+    import xlsxwriter
     
     # Δημιουργία του Excel αρχείου
     output = io.BytesIO()
@@ -1454,7 +1516,7 @@ def create_pyseep_ajax(request):
     # Συλλογή δεδομένων
     applications = Application.objects.filter(
         pyseep=pyseep,
-        status='READY_FOR_PYSEEP'
+        status__in=['READY_FOR_PYSEEP', 'COMPLETED']
     ).select_related('teacher', 'specialty').prefetch_related('priorservice_set')
     
     # Οργάνωση δεδομένων
