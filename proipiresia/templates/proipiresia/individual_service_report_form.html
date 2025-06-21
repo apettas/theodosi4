@@ -1,0 +1,142 @@
+{% extends 'proipiresia/base.html' %}
+{% load static %}
+
+{% block title %}Αναφορά Υπηρεσίας Εκπαιδευτικού{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-file-alt"></i>
+                        Αναφορά Υπηρεσίας Εκπαιδευτικού
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Οδηγίες:</strong> Επιλέξτε την αίτηση του εκπαιδευτικού για τον οποίο θέλετε να δημιουργήσετε αναφορά υπηρεσίας και τη μορφή του αρχείου που προτιμάτε.
+                    </div>
+                    
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="form-group">
+                                    <label for="{{ form.application.id_for_label }}" class="form-label">
+                                        <i class="fas fa-user-graduate"></i>
+                                        {{ form.application.label }}
+                                    </label>
+                                    {{ form.application }}
+                                    {% if form.application.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.application.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">
+                                        Επιλέξτε την αίτηση του εκπαιδευτικού για τον οποίο θέλετε να δημιουργήσετε αναφορά.
+                                    </small>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="{{ form.format.id_for_label }}" class="form-label">
+                                        <i class="fas fa-file-download"></i>
+                                        {{ form.format.label }}
+                                    </label>
+                                    {{ form.format }}
+                                    {% if form.format.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.format.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">
+                                        Επιλέξτε τη μορφή του αρχείου.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'home' %}" class="btn btn-secondary">
+                                        <i class="fas fa-arrow-left"></i>
+                                        Επιστροφή
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-download"></i>
+                                        Δημιουργία Αναφοράς
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Πληροφορίες για τη μορφή της αναφοράς -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="fas fa-info"></i>
+                        Πληροφορίες Αναφοράς
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p>Η αναφορά υπηρεσίας εκπαιδευτικού περιλαμβάνει:</p>
+                    <ul>
+                        <li><strong>Στοιχεία Εκπαιδευτικού:</strong> Όνομα, επώνυμο, πατρώνυμο</li>
+                        <li><strong>Ημερομηνία Υποβολής:</strong> Αίτησης</li>
+                        <li><strong>Κλάδος/Ειδικότητα:</strong> Όλες οι ειδικότητες του εκπαιδευτικού</li>
+                        <li><strong>Αριθμός Πρωτοκόλλου:</strong> Αίτησης</li>
+                        <li><strong>Πίνακας Προϋπηρεσιών:</strong> Αναλυτική κατάσταση όλων των προϋπηρεσιών</li>
+                        <li><strong>Σύνολο:</strong> Συνολικά έτη, μήνες και ημέρες υπηρεσίας</li>
+                    </ul>
+                    
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Σημείωση:</strong> Η αναφορά δημιουργείται με βάση τα δεδομένα που έχουν καταχωρηθεί στην επιλεγμένη αίτηση. Βεβαιωθείτε ότι όλες οι προϋπηρεσίες έχουν ελεγχθεί και επαληθευτεί.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const forms = document.querySelectorAll('.needs-validation');
+    Array.prototype.slice.call(forms).forEach(function(form) {
+        form.addEventListener('submit', function(event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        }, false);
+    });
+    
+    // Application select enhancement
+    const applicationSelect = document.getElementById('{{ form.application.id_for_label }}');
+    if (applicationSelect) {
+        applicationSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption.value) {
+                // Could add AJAX call here to show application details
+                console.log('Selected application:', selectedOption.text);
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
