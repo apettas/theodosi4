@@ -310,25 +310,6 @@ class ReportForm(forms.Form):
     )
 
 
-# Φόρμα για την εξαγωγή αναφοράς ΠΥΣΕΕΠ
-class PYSEEPReportForm(forms.Form):
-    pyseep = forms.ModelChoiceField(
-        required=True,
-        queryset=PYSEEP.objects.all(),
-        label='ΠΥΣΕΕΠ',
-        widget=forms.Select(attrs={'class': 'form-control'})
-    )
-    format = forms.ChoiceField(
-        required=True,
-        choices=[
-            ('xlsx', 'Excel'),
-            ('pdf', 'PDF'),
-            ('docx', 'Word')
-        ],
-        label='Μορφή Αρχείου',
-        widget=forms.Select(attrs={'class': 'form-control'})
-    )
-
 # Φόρμα για δημιουργία ΠΥΣΕΕΠ
 class PYSEEPForm(forms.ModelForm):
     class Meta:
@@ -357,32 +338,3 @@ class PYSEEPServiceReportForm(forms.Form):
         label='Μορφή Αρχείου',
         widget=forms.Select(attrs={'class': 'form-control'})
     )
-
-# Φόρμα για την εξαγωγή individual service report
-class IndividualServiceReportForm(forms.Form):
-    application = forms.ModelChoiceField(
-        required=True,
-        queryset=Application.objects.select_related('teacher', 'current_service', 'school_year', 'employee_type').all(),
-        label='Αίτηση Εκπαιδευτικού',
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        empty_label="Επιλέξτε αίτηση..."
-    )
-    format = forms.ChoiceField(
-        required=True,
-        choices=[
-            ('docx', 'Word Document'),
-            ('pdf', 'PDF Document')
-        ],
-        label='Μορφή Αρχείου',
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        initial='docx'
-    )
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Ταξινόμηση των αιτήσεων ανά εκπαιδευτικό
-        self.fields['application'].queryset = Application.objects.select_related(
-            'teacher', 'current_service', 'school_year', 'employee_type'
-        ).filter(is_active=True).order_by(
-            'teacher__last_name', 'teacher__first_name', '-created_at'
-        )

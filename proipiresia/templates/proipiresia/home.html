@@ -128,7 +128,7 @@
                                     <td>{{ pyseep.date|date:"d/m/Y" }}</td>
                                     <td>{{ pyseep.school_year }}</td>
                                     <td>
-                                        <a href="{% url 'generate-report' %}?pyseep={{ pyseep.id }}" class="btn btn-sm btn-primary btn-icon" data-bs-toggle="tooltip" title="Δημιουργία Αναφοράς">
+                                        <a href="{% url 'generate-pyseep-report' %}?pyseep={{ pyseep.id }}" class="btn btn-sm btn-primary btn-icon" data-bs-toggle="tooltip" title="Δημιουργία Αναφοράς ΠΥΣΕΕΠ">
                                             <i class="fas fa-file-export"></i>
                                         </a>
                                     </td>
@@ -163,12 +163,6 @@
                         </a>
                         <a href="{% url 'generate-pyseep-report' %}" class="btn btn-outline-dark">
                             <i class="fas fa-file-export me-2"></i>Αναφορά ΠΥΣΕΕΠ
-                        </a>
-                        <a href="{% url 'generate-pyseep-service-report' %}" class="btn btn-outline-secondary">
-                            <i class="fas fa-file-invoice me-2"></i>ΠΥΣΕΕΠ Landscape
-                        </a>
-                        <a href="{% url 'individual-service-report' %}" class="btn btn-outline-purple">
-                            <i class="fas fa-user-check me-2"></i>Αναφορά Εκπαιδευτικού
                         </a>
                     </div>
                 </div>
