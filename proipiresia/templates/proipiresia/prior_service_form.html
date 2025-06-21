@@ -330,30 +330,6 @@
         return (endYear - startYear) * 360 + (endMonth - startMonth) * 30 + (endDay - startDay);
     }
     
-    // Έλεγχος για διάστημα αναστολής Ν. 4354/2015
-    function checkSuspensionPeriod(startDate, endDate) {
-        const suspensionStart = new Date(2016, 0, 1); // 1-1-2016
-        const suspensionEnd = new Date(2017, 11, 31); // 31-12-2017
-        
-        // Έλεγχος αν υπάρχει επικάλυψη με το διάστημα αναστολής
-        if (startDate <= suspensionEnd && endDate >= suspensionStart) {
-            const notesInput = document.getElementById('{{ form.notes.id_for_label }}');
-            const suspensionText = 'ΑΠΟ 1-1-2016 ΑΝΑΣΤΟΛΗ Ν. 4354/2015';
-            
-            // Εμφάνιση alert
-            alert(suspensionText);
-            
-            // Προσθήκη κειμένου στις παρατηρήσεις αν δεν υπάρχει ήδη
-            if (notesInput && !notesInput.value.includes(suspensionText)) {
-                if (notesInput.value.trim()) {
-                    notesInput.value += '\n' + suspensionText;
-                } else {
-                    notesInput.value = suspensionText;
-                }
-            }
-        }
-    }
-
     // Αυτόματος υπολογισμός διάρκειας προϋπηρεσίας και ενημέρωση οθόνης
     function calculateDurationAndDisplay() {
         if (manualOverrideCheckbox.checked) {
@@ -381,9 +357,6 @@
                 daysDisplay.textContent = 0;
                 return;
             }
-
-            // Έλεγχος για διάστημα αναστολής
-            checkSuspensionPeriod(startDate, endDate);
             
             // Προσθήκη μίας ημέρας για να συμπεριληφθεί και η τελευταία ημέρα
             const endDatePlusOne = new Date(endDate);
