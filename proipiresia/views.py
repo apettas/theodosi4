@@ -1405,10 +1405,10 @@ class PYSEEPCreateView(LoginRequiredMixin, CreateView):
     form_class = PYSEEPForm
     template_name = 'proipiresia/pyseep_form.html'
     success_url = reverse_lazy('home')
-    
+
     def form_valid(self, form):
         response = super().form_valid(form)
-        
+
         # Καταγραφή της ενέργειας
         log_action(
             self.request,
@@ -1421,8 +1421,41 @@ class PYSEEPCreateView(LoginRequiredMixin, CreateView):
                 'school_year': self.object.school_year.name
             })
         )
-        
+
         messages.success(self.request, f'Το ΠΥΣΕΕΠ {self.object.act_number} δημιουργήθηκε επιτυχώς.')
+        return response
+
+# Ενημέρωση ΠΥΣΕΕΠ
+class PYSEEPUpdateView(LoginRequiredMixin, UpdateView):
+    model = PYSEEP
+    form_class = PYSEEPForm
+    template_name = 'proipiresia/pyseep_form.html'
+    success_url = reverse_lazy('home')
+
+    def form_valid(self, form):
+        old_values = {
+            'act_number': self.object.act_number,
+            'date': self.object.date.strftime('%Y-%m-%d'),
+            'school_year': self.object.school_year.name
+        }
+
+        response = super().form_valid(form)
+
+        # Καταγραφή της ενέργειας
+        log_action(
+            self.request,
+            'UPDATE',
+            'OTHER',
+            self.object.id,
+            old_values=json.dumps(old_values),
+            new_values=json.dumps({
+                'act_number': self.object.act_number,
+                'date': self.object.date.strftime('%Y-%m-%d'),
+                'school_year': self.object.school_year.name
+            })
+        )
+
+        messages.success(self.request, f'Το ΠΥΣΕΕΠ {self.object.act_number} ενημερώθηκε επιτυχώς.')
         return response
 
 
