@@ -402,23 +402,11 @@ class PriorService(models.Model):
     
     def clean(self):
         from django.core.exceptions import ValidationError
-        
+
         # Έλεγχος ότι η ημερομηνία λήξης είναι μεταγενέστερη της ημερομηνίας έναρξης
         if self.end_date and self.start_date and self.end_date < self.start_date:
             raise ValidationError({'end_date': 'Η ημερομηνία λήξης πρέπει να είναι μεταγενέστερη της ημερομηνίας έναρξης.'})
-        
-        # Έλεγχος για αλληλεπικαλυπτόμενες περιόδους
-        # Ελέγχουμε αν το πεδίο application έχει οριστεί
-        if hasattr(self, 'application') and self.application is not None:
-            overlapping = PriorService.objects.filter(
-                application=self.application,
-                start_date__lte=self.end_date,
-                end_date__gte=self.start_date
-            ).exclude(pk=self.pk)
-            
-            if overlapping.exists():
-                raise ValidationError('Υπάρχει αλληλεπικάλυψη με άλλη προϋπηρεσία στην ίδια αίτηση.')
-        
+
         # Έλεγχος για το νέο πεδίο reduced_hours
         reduced_hours = self.reduced_hours
         if reduced_hours is not None:

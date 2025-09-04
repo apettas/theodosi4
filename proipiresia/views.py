@@ -1118,7 +1118,7 @@ def generate_pyseep_docx_landscape_report(pyseep, applications):
                 # Στην πρώτη γραμμή κάθε εκπαιδευτικού, εμφανίζουμε τα βασικά στοιχεία
                 if idx == 0:
                     row_cells[0].text = application.submission_date.strftime('%d/%m/%Y') if application.submission_date else ""
-                    row_cells[1].text = f"{teacher.last_name} {teacher.first_name} του {teacher.father_name}"
+                    row_cells[1].text = f"{teacher.last_name} {teacher.first_name}"
                     row_cells[2].text = specialty_text
                 
                 # Στοιχεία προϋπηρεσίας (αν υπάρχει)
@@ -1292,7 +1292,7 @@ def generate_pyseep_pdf_landscape_report(pyseep, applications):
                 # Στην πρώτη γραμμή κάθε εκπαιδευτικού, εμφανίζουμε τα βασικά στοιχεία
                 if idx == 0:
                     row_data[0] = application.submission_date.strftime('%d/%m/%Y') if application.submission_date else ""
-                    row_data[1] = f"{teacher.last_name} {teacher.first_name} του {teacher.father_name}"
+                    row_data[1] = f"{teacher.last_name} {teacher.first_name}"
                     row_data[2] = specialty_text
                 
                 # Στοιχεία προϋπηρεσίας (αν υπάρχει)
