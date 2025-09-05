@@ -1118,7 +1118,7 @@ def generate_pyseep_docx_landscape_report(pyseep, applications):
                 # Στην πρώτη γραμμή κάθε εκπαιδευτικού, εμφανίζουμε τα βασικά στοιχεία
                 if idx == 0:
                     row_cells[0].text = application.submission_date.strftime('%d/%m/%Y') if application.submission_date else ""
-                    row_cells[1].text = f"{teacher.last_name} {teacher.first_name} του {teacher.father_name}"
+                    row_cells[1].text = f"{teacher.last_name} {teacher.first_name}"
                     row_cells[2].text = specialty_text
                 
                 # Στοιχεία προϋπηρεσίας (αν υπάρχει)
@@ -1292,7 +1292,7 @@ def generate_pyseep_pdf_landscape_report(pyseep, applications):
                 # Στην πρώτη γραμμή κάθε εκπαιδευτικού, εμφανίζουμε τα βασικά στοιχεία
                 if idx == 0:
                     row_data[0] = application.submission_date.strftime('%d/%m/%Y') if application.submission_date else ""
-                    row_data[1] = f"{teacher.last_name} {teacher.first_name} του {teacher.father_name}"
+                    row_data[1] = f"{teacher.last_name} {teacher.first_name}"
                     row_data[2] = specialty_text
                 
                 # Στοιχεία προϋπηρεσίας (αν υπάρχει)
@@ -1405,10 +1405,10 @@ class PYSEEPCreateView(LoginRequiredMixin, CreateView):
     form_class = PYSEEPForm
     template_name = 'proipiresia/pyseep_form.html'
     success_url = reverse_lazy('home')
-    
+
     def form_valid(self, form):
         response = super().form_valid(form)
-        
+
         # Καταγραφή της ενέργειας
         log_action(
             self.request,
@@ -1421,8 +1421,41 @@ class PYSEEPCreateView(LoginRequiredMixin, CreateView):
                 'school_year': self.object.school_year.name
             })
         )
-        
+
         messages.success(self.request, f'Το ΠΥΣΕΕΠ {self.object.act_number} δημιουργήθηκε επιτυχώς.')
+        return response
+
+# Ενημέρωση ΠΥΣΕΕΠ
+class PYSEEPUpdateView(LoginRequiredMixin, UpdateView):
+    model = PYSEEP
+    form_class = PYSEEPForm
+    template_name = 'proipiresia/pyseep_form.html'
+    success_url = reverse_lazy('home')
+
+    def form_valid(self, form):
+        old_values = {
+            'act_number': self.object.act_number,
+            'date': self.object.date.strftime('%Y-%m-%d'),
+            'school_year': self.object.school_year.name
+        }
+
+        response = super().form_valid(form)
+
+        # Καταγραφή της ενέργειας
+        log_action(
+            self.request,
+            'UPDATE',
+            'OTHER',
+            self.object.id,
+            old_values=json.dumps(old_values),
+            new_values=json.dumps({
+                'act_number': self.object.act_number,
+                'date': self.object.date.strftime('%Y-%m-%d'),
+                'school_year': self.object.school_year.name
+            })
+        )
+
+        messages.success(self.request, f'Το ΠΥΣΕΕΠ {self.object.act_number} ενημερώθηκε επιτυχώς.')
         return response
 
 

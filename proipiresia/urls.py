@@ -37,6 +37,7 @@ urlpatterns = [
     
     # ΠΥΣΕΕΠ
     path('pyseep/new/', views.PYSEEPCreateView.as_view(), name='pyseep-create'),
+    path('pyseep/<int:pk>/edit/', views.PYSEEPUpdateView.as_view(), name='pyseep-update'),
     
     # AJAX endpoints
     path('ajax/create-service-provider/', views.create_service_provider_ajax, name='create-service-provider-ajax'),

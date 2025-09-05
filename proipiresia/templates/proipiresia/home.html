@@ -128,23 +128,9 @@
                                     <td>{{ pyseep.date|date:"d/m/Y" }}</td>
                                     <td>{{ pyseep.school_year }}</td>
                                     <td>
-                                        <div class="btn-group" role="group">
-                                            <button id="reportDropdown{{ pyseep.id }}" type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Δημιουργία Αναφοράς ΠΥΣΕΕΠ">
-                                                <i class="fas fa-file-export"></i>
-                                            </button>
-                                            <ul class="dropdown-menu" aria-labelledby="reportDropdown{{ pyseep.id }}">
-                                                <li><a class="dropdown-item" href="{% url 'generate-pyseep-direct-pdf' pyseep.id %}">
-                                                    <i class="fas fa-file-pdf text-danger me-1"></i> PDF
-                                                </a></li>
-                                                <li><a class="dropdown-item" href="{% url 'generate-pyseep-direct-word' pyseep.id %}">
-                                                    <i class="fas fa-file-word text-primary me-1"></i> Word
-                                                </a></li>
-                                                <li><hr class="dropdown-divider"></li>
-                                                <li><a class="dropdown-item" href="{% url 'generate-pyseep-report' %}?pyseep={{ pyseep.id }}">
-                                                    <i class="fas fa-cog me-1"></i> Επιλογές...
-                                                </a></li>
-                                            </ul>
-                                        </div>
+                                        <a href="{% url 'pyseep-update' pyseep.id %}" class="btn btn-sm btn-warning btn-icon" data-bs-toggle="tooltip" title="Επεξεργασία ΠΥΣΕΕΠ">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -171,9 +157,6 @@
                         </a>
                         <a href="{% url 'pyseep-create' %}" class="btn btn-outline-warning">
                             <i class="fas fa-stamp me-2"></i>Νέο ΠΥΣΕΕΠ
-                        </a>
-                        <a href="{% url 'generate-report' %}" class="btn btn-outline-info">
-                            <i class="fas fa-chart-bar me-2"></i>Δημιουργία Αναφοράς
                         </a>
                         <a href="{% url 'generate-pyseep-report' %}" class="btn btn-outline-dark">
                             <i class="fas fa-file-export me-2"></i>Αναφορά ΠΥΣΕΕΠ
