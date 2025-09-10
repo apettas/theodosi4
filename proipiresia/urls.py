@@ -34,6 +34,7 @@ urlpatterns = [
     path('reports/pyseep/', views.generate_pyseep_service_report, name='generate-pyseep-report'),
     path('reports/pyseep/pdf/<int:pyseep_id>/', views.generate_pyseep_direct_pdf, name='generate-pyseep-direct-pdf'),
     path('reports/pyseep/word/<int:pyseep_id>/', views.generate_pyseep_direct_word, name='generate-pyseep-direct-word'),
+    path('reports/pyseep/excel/<int:pyseep_id>/', views.generate_pyseep_direct_excel, name='generate-pyseep-direct-excel'),
     
     # ΠΥΣΕΕΠ
     path('pyseep/new/', views.PYSEEPCreateView.as_view(), name='pyseep-create'),
