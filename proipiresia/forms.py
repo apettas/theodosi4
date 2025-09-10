@@ -333,7 +333,8 @@ class PYSEEPServiceReportForm(forms.Form):
         required=True,
         choices=[
             ('docx', 'Word Document'),
-            ('pdf', 'PDF Document')
+            ('pdf', 'PDF Document'),
+            ('xlsx', 'Excel Spreadsheet')
         ],
         label='Μορφή Αρχείου',
         widget=forms.Select(attrs={'class': 'form-control'})
