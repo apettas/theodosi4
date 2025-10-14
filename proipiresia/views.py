@@ -886,42 +886,43 @@ def verify_prior_service(request, pk):
 # Νέα Αναφορά ΠΥΣΕΕΠ - Landscape format
 @login_required
 def generate_pyseep_service_report(request):
-    print(f"DEBUG: generate_pyseep_service_report called with method: {request.method}")
-    print(f"DEBUG: GET params: {request.GET}")
-    print(f"DEBUG: POST params: {request.POST}")
-    
-    # Έλεγχος αν έχει περαστεί συγκεκριμένο ΠΥΣΕΕΠ ως παράμετρος (από link)
-    pyseep_id = request.GET.get('pyseep')
-    if pyseep_id:
-        try:
-            pyseep = PYSEEP.objects.get(id=pyseep_id)
-            # Φιλτράρισμα αιτήσεων για το συγκεκριμένο ΠΥΣΕΕΠ με status 'READY_FOR_PYSEEP' ή 'COMPLETED'
-            applications = Application.objects.filter(
-                pyseep=pyseep,
-                status__in=['READY_FOR_PYSEEP', 'COMPLETED']
-            ).select_related(
-                'teacher', 'current_service'
-            ).prefetch_related(
-                'teacher__teacherspecialty_set__specialty',
-                'priorservice_set__service_provider',
-                'priorservice_set__employment_relation'
-            ).order_by('teacher__last_name', 'teacher__first_name')
-            
-            # Προεπιλεγμένη φόρμα με το ΠΥΣΕΕΠ ήδη επιλεγμένο
-            form = PYSEEPServiceReportForm(initial={'pyseep': pyseep})
-        except PYSEEP.DoesNotExist:
-            form = PYSEEPServiceReportForm()
-    elif request.method == 'POST':
-        form = PYSEEPServiceReportForm(request.POST)
+    # Ενοποίηση της λογικής για GET και POST
+    # Η φόρμα αρχικοποιείται είτε με POST data είτε με GET data
+    form_data = request.POST if request.method == 'POST' else request.GET
+    form = PYSEEPServiceReportForm(form_data)
+
+    # Αν η φόρμα υποβλήθηκε (POST) και είναι έγκυρη, ή αν υπάρχουν παράμετροι στο GET
+    if (request.method == 'POST' and form.is_valid()) or (request.method == 'GET' and 'pyseep' in request.GET):
         if form.is_valid():
             pyseep = form.cleaned_data.get('pyseep')
             report_format = form.cleaned_data.get('format')
+            current_service = form.cleaned_data.get('current_service')
+            school_year = form.cleaned_data.get('school_year')
+            employee_type = form.cleaned_data.get('employee_type')
+            recruitment_phase = form.cleaned_data.get('recruitment_phase')
             
-            # Φιλτράρισμα αιτήσεων για το συγκεκριμένο ΠΥΣΕΕΠ με status 'READY_FOR_PYSEEP' ή 'COMPLETED'
-            applications = Application.objects.filter(
-                pyseep=pyseep,
-                status__in=['READY_FOR_PYSEEP', 'COMPLETED']
-            ).select_related(
+            # Βασικό queryset - όλες οι αιτήσεις που είναι έτοιμες ή ολοκληρωμένες
+            applications = Application.objects.filter(status__in=['READY_FOR_PYSEEP', 'COMPLETED'])
+
+            # Προαιρετικό φιλτράρισμα με βάση το ΠΥΣΕΕΠ
+            if pyseep:
+                applications = applications.filter(pyseep=pyseep)
+            
+            # Εφαρμογή των φίλτρων
+            if current_service:
+                applications = applications.filter(current_service=current_service)
+            
+            if school_year:
+                applications = applications.filter(school_year=school_year)
+            
+            if employee_type:
+                applications = applications.filter(employee_type=employee_type)
+            
+            if recruitment_phase:
+                applications = applications.filter(recruitment_phase__icontains=recruitment_phase)
+
+            # Βελτιστοποίηση query με prefetch/select_related
+            applications = applications.select_related(
                 'teacher', 'current_service'
             ).prefetch_related(
                 'teacher__teacherspecialty_set__specialty',
@@ -929,19 +930,19 @@ def generate_pyseep_service_report(request):
                 'priorservice_set__employment_relation'
             ).order_by('teacher__last_name', 'teacher__first_name')
             
-            # Δημιουργία αναφοράς στο επιλεγμένο format (landscape)
-            if report_format == 'docx':
-                return generate_pyseep_docx_landscape_report(pyseep, applications)
-            elif report_format == 'pdf':
-                return generate_pyseep_pdf_landscape_report(pyseep, applications)
-            elif report_format == 'xlsx':
-                return generate_pyseep_excel_report(pyseep, applications)
-            else:
-                # Fallback σε PDF αν το format δεν αναγνωρίζεται
-                return generate_pyseep_pdf_landscape_report(pyseep, applications)
-    else:
-        form = PYSEEPServiceReportForm()
-    
+            # Αν η μέθοδος είναι POST, δημιουργούμε την αναφορά για download
+            if request.method == 'POST':
+                if report_format == 'docx':
+                    return generate_pyseep_docx_landscape_report(pyseep, applications)
+                elif report_format == 'pdf':
+                    return generate_pyseep_pdf_landscape_report(pyseep, applications)
+                elif report_format == 'xlsx':
+                    return generate_pyseep_excel_report(pyseep, applications)
+                else:
+                    # Fallback σε PDF αν το format δεν αναγνωρίζεται
+                    return generate_pyseep_pdf_landscape_report(pyseep, applications)
+
+    # Αν η φόρμα δεν έχει υποβληθεί ή δεν είναι έγκυρη, απλά την εμφανίζουμε
     return render(request, 'proipiresia/pyseep_service_report_form.html', {'form': form})
 
 # Άμεση δημιουργία αναφοράς PDF από link
@@ -1213,7 +1214,8 @@ def generate_pyseep_docx_landscape_report(pyseep, applications):
             file.read(),
             content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         )
-        response['Content-Disposition'] = f'attachment; filename="PYSEEP_Report_{pyseep.act_number}_landscape.docx"'
+        filename = f"PYSEEP_Report_{pyseep.act_number}_landscape.docx" if pyseep else f"PYSEEP_Report_All_{datetime.date.today().strftime('%Y%m%d')}.docx"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
     
     os.unlink(temp_file.name)
     return response
@@ -1384,7 +1386,8 @@ def generate_pyseep_pdf_landscape_report(pyseep, applications):
     buffer.seek(0)
     
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="PYSEEP_Report_{pyseep.act_number}_landscape.pdf"'
+    filename = f"PYSEEP_Report_{pyseep.act_number}_landscape.pdf" if pyseep else f"PYSEEP_Report_All_{datetime.date.today().strftime('%Y%m%d')}.pdf"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     
     return response
         
@@ -1697,7 +1700,8 @@ def generate_pyseep_excel_report(pyseep, applications):
         output.read(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-    response['Content-Disposition'] = f'attachment; filename="PYSEEP_Report_{pyseep.act_number}_landscape.xlsx"'
+    filename = f"PYSEEP_Report_{pyseep.act_number}_landscape.xlsx" if pyseep else f"PYSEEP_Report_All_{datetime.date.today().strftime('%Y%m%d')}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
     return response
 
@@ -1725,6 +1729,3 @@ def generate_report(request):
         'form': form,
         'title': 'Επιλογή Τύπου Αναφοράς'
     })
-
-
-

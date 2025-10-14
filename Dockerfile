@@ -2,8 +2,8 @@
 FROM python:3.11-slim
 
 # Ορισμός μεταβλητών περιβάλλοντος
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 # Ορισμός του working directory μέσα στο container
 WORKDIR /app

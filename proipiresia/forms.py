@@ -324,10 +324,34 @@ class PYSEEPForm(forms.ModelForm):
 # Φόρμα για την εξαγωγή αναφοράς υπηρεσίας ΠΥΣΕΕΠ (landscape format)
 class PYSEEPServiceReportForm(forms.Form):
     pyseep = forms.ModelChoiceField(
-        required=True,
+        required=False,
         queryset=PYSEEP.objects.all(),
-        label='ΠΥΣΕΕΠ',
+        label='ΠΥΣΕΕΠ (Φίλτρο)',
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        help_text="Προαιρετικό. Αν δεν επιλεγεί, η αναφορά θα περιλαμβάνει αιτήσεις από όλα τα ΠΥΣΕΕΠ."
+    )
+    current_service = forms.ModelChoiceField(
+        required=False,
+        queryset=Service.objects.all(),
+        label='Φορέας Υπηρέτησης (Φίλτρο)',
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
+    school_year = forms.ModelChoiceField(
+        required=False,
+        queryset=SchoolYear.objects.all(),
+        label='Σχολικό Έτος (Φίλτρο)',
         widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    employee_type = forms.ModelChoiceField(
+        required=False,
+        queryset=EmployeeType.objects.all(),
+        label='Τύπος Εκπαιδευτικού (Φίλτρο)',
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    recruitment_phase = forms.CharField(
+        required=False,
+        label='Φάση Πρόσληψης (Φίλτρο)',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'π.χ. Α ΦΑΣΗ'})
     )
     format = forms.ChoiceField(
         required=True,
