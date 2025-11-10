@@ -212,8 +212,17 @@ class TeacherCreateView(LoginRequiredMixin, CreateView):
         return reverse('teacher-detail', kwargs={'pk': self.object.pk})
     
     def form_valid(self, form):
-        response = super().form_valid(form)
-        log_action(
+        # Αποθήκευση του Teacher χωρίς commit για να προσθέσουμε την ειδικότητα
+        teacher = form.save(commit=False)
+        teacher.save() # Αποθήκευση του εκπαιδευτικού για να πάρουμε ID
+
+        # Δημιουργία της εγγραφής TeacherSpecialty για την κύρια ειδικότητα
+        primary_specialty = form.cleaned_data.get('primary_specialty')
+        if primary_specialty:
+            TeacherSpecialty.objects.create(teacher=teacher, specialty=primary_specialty, is_primary=True)
+        
+        self.object = teacher # Ορισμός του self.object για το get_success_url
+        log_action( 
             self.request, 
             'CREATE', 
             'TEACHER', 
@@ -223,11 +232,12 @@ class TeacherCreateView(LoginRequiredMixin, CreateView):
                 'last_name': self.object.last_name,
                 'father_name': self.object.father_name,
                 'phone': self.object.phone,
-                'email': self.object.email
+                'email': self.object.email,
+                'primary_specialty': primary_specialty.code if primary_specialty else None
             })
         )
         messages.success(self.request, f'Ο εκπαιδευτικός {self.object} δημιουργήθηκε επιτυχώς.')
-        return response
+        return redirect(self.get_success_url())
 
 # Ενημέρωση εκπαιδευτικού
 class TeacherUpdateView(LoginRequiredMixin, UpdateView):

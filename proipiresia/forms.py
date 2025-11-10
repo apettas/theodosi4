@@ -54,9 +54,17 @@ class CustomUserCreationForm(UserCreationForm):
 
 # Φόρμα για το μοντέλο Teacher
 class TeacherForm(forms.ModelForm):
+    # Προσθήκη πεδίου για την κύρια ειδικότητα, το οποίο δεν αντιστοιχεί απευθείας σε πεδίο του μοντέλου Teacher
+    primary_specialty = forms.ModelChoiceField(
+        queryset=Specialty.objects.all(),
+        label="Κύρια Ειδικότητα",
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+
     class Meta:
         model = Teacher
-        fields = ('first_name', 'last_name', 'father_name', 'phone', 'email')
+        fields = ('first_name', 'last_name', 'father_name', 'phone', 'email', 'primary_specialty')
         widgets = {
             'first_name': forms.TextInput(attrs={'class': 'form-control'}),
             'last_name': forms.TextInput(attrs={'class': 'form-control'}),
@@ -64,6 +72,30 @@ class TeacherForm(forms.ModelForm):
             'phone': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
         }
+
+    def clean(self):
+        """
+        Προσθήκη προσαρμοσμένου ελέγχου για διπλότυπους εκπαιδευτικούς
+        με βάση το όνομα, επώνυμο, πατρώνυμο και την κύρια ειδικότητα.
+        """
+        cleaned_data = super().clean()
+        first_name = cleaned_data.get('first_name')
+        last_name = cleaned_data.get('last_name')
+        father_name = cleaned_data.get('father_name')
+        primary_specialty = cleaned_data.get('primary_specialty')
+
+        # Ο έλεγχος γίνεται μόνο κατά τη δημιουργία νέου εκπαιδευτικού
+        if not self.instance.pk and first_name and last_name and father_name and primary_specialty:
+            # Αναζήτηση για εκπαιδευτικό με τα ίδια στοιχεία ΚΑΙ την ίδια κύρια ειδικότητα
+            if Teacher.objects.filter(
+                first_name=first_name,
+                last_name=last_name,
+                father_name=father_name,
+                teacherspecialty__specialty=primary_specialty,
+                teacherspecialty__is_primary=True
+            ).exists():
+                raise ValidationError("Ένας εκπαιδευτικός με αυτό το ονοματεπώνυμο, πατρώνυμο και κύρια ειδικότητα υπάρχει ήδη.")
+        return cleaned_data
 
 # Φόρμα για το μοντέλο TeacherSpecialty
 class TeacherSpecialtyForm(forms.ModelForm):

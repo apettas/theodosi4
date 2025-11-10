@@ -100,12 +100,7 @@ class Teacher(models.Model):
         verbose_name = "Εκπαιδευτικός"
         verbose_name_plural = "Εκπαιδευτικοί"
         ordering = ['last_name', 'first_name']
-        constraints = [
-            models.UniqueConstraint(
-                fields=['first_name', 'last_name', 'father_name'],
-                name='unique_teacher'
-            )
-        ]
+        # Ο περιορισμός μοναδικότητας μεταφέρθηκε στη φόρμα TeacherForm για να συμπεριλάβει την ειδικότητα.
     
     def __str__(self):
         return f"{self.last_name} {self.first_name} του {self.father_name}"
